@@ -1,5 +1,6 @@
 {-# LANGUAGE DataKinds                  #-}
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE ScopedTypeVariables #-}
 
 module Requests where
 
@@ -12,15 +13,15 @@ import Control.Monad.Trans.Maybe
 
 data Request a b method = Request { body :: a, method :: method, url :: Url Https }
 
-runRequest :: (ToJSON a, FromJSON b, HttpMethod method) => Request a b method -> MaybeT (StateT String IO) b
+runRequest :: (ToJSON a, FromJSON b, HttpMethod method) => Request a b method -> State String (MaybeT IO b)
 runRequest r = do
-  token <- get
+  token :: String <- get
   res <- runReq defaultHttpConfig $ req
     (method r)
     (url r)
     (ReqBodyJson . body $ r)
     jsonResponse
     (header "Authorization" $ fromString $ "Bearer " ++ token)
-  (MaybeT . return) $ case value of
+  case fromJSON $ responseBody res of
     Success b -> Just b
     _ -> Nothing

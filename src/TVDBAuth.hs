@@ -13,7 +13,7 @@ import Network.HTTP.Req
 import Control.Monad (liftM)
 import qualified Data.HashMap.Strict as M
 
-runAuthenticated :: MonadIO m => Request a b -> StateT String m a
+runAuthenticated :: (MonadIO m, HttpMethod method) => Request a b method -> StateT String m a
 runAuthenticated req = do
   tokenToTry <- get
   res <- runReq defaultHttpConfig $ attachHeader "Authorization" ("Bearer" ++ tokenToTry) req
