@@ -4,3 +4,5 @@ tvqbh.cabal
 src/secret.hs
 .idea
 out
+stack.yaml.lock
+*.iml
