@@ -15,10 +15,8 @@ import qualified Data.HashMap.Strict as M
 
 runAuthenticated :: (MonadIO m, HttpMethod method) => Request a b method -> StateT String m a
 runAuthenticated req = do
-  tokenToTry <- get
-  res <- runReq defaultHttpConfig $ attachHeader "Authorization" ("Bearer" ++ tokenToTry) req
-  case responseStatusCode res of
-    401 -> getToken >> runAuthenticated req
+  token <- get
+  
     
 getToken :: StateT String IO ()
 getToken = do
