@@ -25,6 +25,7 @@ dependencies:
 - transformers
 - req
 - unordered-containers
+- mtl
 
 library:
   source-dirs: src

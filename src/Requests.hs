@@ -11,6 +11,8 @@ import Data.Aeson
 import Data.String
 import Err
 import Network.HTTP.Req
+import App (App)
+import Control.Monad.Error.Class (liftEither)
 
 data Request a b method =
   Request
@@ -23,7 +25,7 @@ makeRequest ::
      (ToJSON a, FromJSON b, HttpMethod method, MonadIO m, HttpBodyAllowed (AllowsBody method) 'CanHaveBody)
   => Request a b method
   -> String
-  -> ExceptT Err m b
+  -> App m b
 makeRequest r token = do
   res <-
     runReq defaultHttpConfig $
@@ -33,7 +35,7 @@ makeRequest r token = do
       (ReqBodyJson . body $ r)
       jsonResponse
       (header "Authorization" $ fromString $ "Bearer " ++ token)
-  ExceptT . return $
+  liftEither $
     let code = responseStatusCode res
      in if code >= 400
           then Left $ Err (Just code) ""
