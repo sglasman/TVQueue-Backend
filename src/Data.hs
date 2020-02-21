@@ -1,4 +1,5 @@
 {-# LANGUAGE DeriveGeneric #-}
+{-# LANGUAGE DeriveAnyClass #-}
 
 module Data where
 
@@ -9,11 +10,8 @@ data Creds = Creds {
   username :: String,
   userkey :: String,
   apikey :: String
-} deriving (Generic, Show)
-
-instance ToJSON Creds
+} deriving (Generic, Show, ToJSON)
 
 newtype TokenResponse = TokenResponse{token :: String}
-  deriving (Generic, Show)
-
-instance FromJSON TokenResponse
+  deriving (Generic, Show, FromJSON)
+  

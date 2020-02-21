@@ -19,3 +19,6 @@ deriving instance Monad m => Monad (App m)
 deriving instance MonadIO m => MonadIO (App m)
 deriving instance Monad m => MonadState String (App m)
 deriving instance Monad m => MonadError Err (App m)
+
+showApp :: (Show a) => App IO a -> IO ()
+showApp (App stateT) = runExceptT (runStateT stateT "") >>= (print . show)

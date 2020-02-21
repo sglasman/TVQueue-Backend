@@ -1,5 +1,6 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE ConstraintKinds #-}
 
 module Requests where
 
@@ -20,9 +21,10 @@ data Request a b method =
     , method :: method
     , url :: Url Https
     }
+    
+type RequestOK a b m method = (ToJSON a, FromJSON b, HttpMethod method, MonadIO m, HttpBodyAllowed (AllowsBody method) 'CanHaveBody)
 
-makeRequest ::
-     (ToJSON a, FromJSON b, HttpMethod method, MonadIO m, HttpBodyAllowed (AllowsBody method) 'CanHaveBody)
+makeRequest :: RequestOK a b m method
   => Request a b method
   -> String
   -> App m b
