@@ -20,7 +20,7 @@ import App
 import Control.Monad.Error.Class (catchError)
 import Control.Monad.State.Class (get, put)
 
-runAuthenticated :: (MonadIO m, HttpMethod method, ToJSON a, FromJSON b, HttpBodyAllowed (AllowsBody method) 'CanHaveBody) => Request a b method -> App m b
+runAuthenticated :: Requests.RequestOK a b m method => Request a b method -> App m b
 runAuthenticated req = do
   token <- get
   let res = makeRequest req token
