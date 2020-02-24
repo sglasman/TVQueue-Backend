@@ -26,6 +26,7 @@ dependencies:
 - req
 - unordered-containers
 - mtl
+- persistent
 
 library:
   source-dirs: src
