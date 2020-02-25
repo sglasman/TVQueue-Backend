@@ -27,6 +27,10 @@ dependencies:
 - unordered-containers
 - mtl
 - persistent
+- persistent-template
+- postgresql-libpq
+- text
+- monad-logger
 
 library:
   source-dirs: src
