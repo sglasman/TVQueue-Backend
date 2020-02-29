@@ -1,6 +1,10 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE ConstraintKinds #-}
+{-# LANGUAGE MultiParamTypeClasses #-}
+{-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE RankNTypes #-}
+{-# LANGUAGE UndecidableInstances #-}
 
 module Requests where
 
@@ -21,10 +25,18 @@ data Request a b method =
     , method :: method
     , url :: Url Https
     }
-    
-type RequestOK a b m method = (ToJSON a, FromJSON b, HttpMethod method, MonadIO m, HttpBodyAllowed (AllowsBody method) 'CanHaveBody)
 
-makeRequest :: RequestOK a b m method
+class HasBody a where
+  getBody :: a -> (forall r. (forall b . (HttpBody b) => b -> r) -> r)
+    
+instance ToJSON a => HasBody a where
+  getBody = ReqBodyJson
+  
+instance HasBody NoReqBody NoReqBody where getBody = id
+
+type RequestOK a b bo m method = (HttpBody bo, HasBody a bo, FromJSON b, HttpMethod method, MonadIO m, HttpBodyAllowed (AllowsBody method) 'CanHaveBody)
+
+makeRequest :: RequestOK a b body m method
   => Request a b method
   -> String
   -> App m b
@@ -34,7 +46,7 @@ makeRequest r token = do
     req
       (method r)
       (url r)
-      (ReqBodyJson . body $ r)
+      (getBody body)
       jsonResponse
       (header "Authorization" $ fromString $ "Bearer " ++ token)
   liftEither $

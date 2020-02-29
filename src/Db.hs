@@ -1,27 +1,30 @@
-{-# LANGUAGE TemplateHaskell            #-}
-{-# LANGUAGE QuasiQuotes                #-}
-{-# LANGUAGE TypeFamilies               #-}
-{-# LANGUAGE MultiParamTypeClasses      #-}
+{-# LANGUAGE DerivingStrategies         #-}
+{-# LANGUAGE FlexibleInstances          #-}
 {-# LANGUAGE GADTs                      #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
-{-# LANGUAGE RecordWildCards            #-}
-{-# LANGUAGE FlexibleInstances          #-}
+{-# LANGUAGE MultiParamTypeClasses      #-}
 {-# LANGUAGE OverloadedStrings          #-}
-{-# LANGUAGE DerivingStrategies #-}
-{-# LANGUAGE StandaloneDeriving #-}
-{-# LANGUAGE UndecidableInstances #-}
+{-# LANGUAGE QuasiQuotes                #-}
+{-# LANGUAGE RecordWildCards            #-}
+{-# LANGUAGE StandaloneDeriving         #-}
+{-# LANGUAGE TemplateHaskell            #-}
+{-# LANGUAGE TypeFamilies               #-}
+{-# LANGUAGE UndecidableInstances       #-}
 
 module Db where
 
-import Database.Persist.TH
---import Database.Persist.Postgresql (ConnectionString, withPostgresqlConn)
-import Data.Text (Text)
-import Control.Monad.Trans.Reader
-import Control.Monad.Logger (runStdoutLoggingT)
-import Database.Persist.Class (insert)
-
---connString :: ConnectionString
---connString = "host=127.0.0.1 port=5432 user=postgres password=postgres dbname=tvqbh"
+import           Control.Monad.IO.Class
+import           Control.Monad.IO.Unlift             (MonadUnliftIO)
+import           Control.Monad.Logger                (runStdoutLoggingT, MonadLogger, LoggingT)
+import           Control.Monad.Trans.Reader
+import           Data.Text                           (Text)
+import           Database.Persist.Class              (insert)
+import           Database.Persist.Sql                (runSqlConn)
+import           Database.Persist.Sql.Types.Internal (SqlBackend)
+import           Database.Persist.Sqlite             (withSqliteConn)
+import           Database.Persist.TH
+import           DbBackend
+import App
 
 share [mkPersist sqlSettings, mkMigrate "migrateAll"]
   [persistLowerCase|
@@ -32,7 +35,19 @@ share [mkPersist sqlSettings, mkMigrate "migrateAll"]
       deriving Show Read
   |]
 
--- type DbAction a b =  
+type DbAction a b = a -> ReaderT SqlBackend (LoggingT IO) b
 
---addSeries :: Series -> IO SeriesId
---addSeries series = runStdoutLoggingT $ withPostgresqlConn connString $ runReaderT $ insert series
+defaultBackend :: SqliteBackend
+defaultBackend = SqliteBackend "tvqbh_dev.db"
+
+runDbActionWithBackend :: (DbBackend dbBackend, MonadIO m) => dbBackend -> DbAction a b -> a -> m b
+runDbActionWithBackend dbBackend action a = liftIO $ runStdoutLoggingT $ runBackend dbBackend (runSqlConn $ action a)
+
+runDbAction :: (MonadIO m) => DbAction a b -> a -> m b
+runDbAction = runDbActionWithBackend defaultBackend
+
+insertSeries :: DbAction Series SeriesId
+insertSeries = insert
+
+addSeries :: Series -> App IO SeriesId
+addSeries = runDbAction insertSeries

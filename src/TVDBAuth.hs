@@ -3,7 +3,7 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE GeneralisedNewtypeDeriving #-}
 
-module TVDBAuth where
+module TVDBAuth (runAuthenticated) where
 
 import Data
 import Secret

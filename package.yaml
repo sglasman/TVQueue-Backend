@@ -28,7 +28,8 @@ dependencies:
 - mtl
 - persistent
 - persistent-template
-- postgresql-libpq
+- persistent-sqlite
+- unliftio-core
 - text
 - monad-logger
 
