@@ -1,52 +1,68 @@
-{-# LANGUAGE DataKinds #-}
-{-# LANGUAGE OverloadedStrings #-}
-{-# LANGUAGE ConstraintKinds #-}
-{-# LANGUAGE MultiParamTypeClasses #-}
+{-# LANGUAGE ConstraintKinds           #-}
+{-# LANGUAGE DataKinds                 #-}
+{-# LANGUAGE ExistentialQuantification #-}
+{-# LANGUAGE FlexibleContexts          #-}
+{-# LANGUAGE OverloadedStrings         #-}
+{-# LANGUAGE RankNTypes                #-}
+{-# LANGUAGE TypeFamilies              #-}
 {-# LANGUAGE FlexibleInstances #-}
-{-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE UndecidableInstances #-}
 
 module Requests where
 
-import Control.Monad.IO.Class
-import Control.Monad.Trans.Except
-import Control.Monad.Trans.Maybe
-import Control.Monad.Trans.State
-import Data.Aeson
-import Data.String
-import Err
-import Network.HTTP.Req
-import App (App)
-import Control.Monad.Error.Class (liftEither)
+import           App                        (App)
+import           Control.Monad.Error.Class  (liftEither)
+import           Control.Monad.IO.Class
+import           Control.Monad.Trans.Except
+import           Control.Monad.Trans.Maybe
+import           Control.Monad.Trans.State
+import           Data.Aeson
+import           Data.Kind                  (Constraint)
+import           Data.String
+import           Err
+import           Network.HTTP.Req
 
-data Request a b method =
+data Request input output method =
   Request
-    { body :: a
+    { input  :: input
     , method :: method
-    , url :: Url Https
+    , url    :: Url Https
     }
 
-class HasBody a where
-  getBody :: a -> (forall r. (forall b . (HttpBody b) => b -> r) -> r)
-    
-instance ToJSON a => HasBody a where
-  getBody = ReqBodyJson
-  
-instance HasBody NoReqBody NoReqBody where getBody = id
+class RequestBody a where
+  type Body a 
+  getBody :: a -> Body a
+ 
+newtype JsonBody a = JsonBody a
 
-type RequestOK a b bo m method = (HttpBody bo, HasBody a bo, FromJSON b, HttpMethod method, MonadIO m, HttpBodyAllowed (AllowsBody method) 'CanHaveBody)
+instance ToJSON a => RequestBody (JsonBody a) where
+  type Body (JsonBody a) = ReqBodyJson a
+  getBody (JsonBody a) = ReqBodyJson a
 
-makeRequest :: RequestOK a b body m method
-  => Request a b method
+instance RequestBody NoReqBody where
+  type Body NoReqBody = NoReqBody
+  getBody NoReqBody = NoReqBody
+
+type RequestOK input output m method = (
+  RequestBody input
+  , HttpBody (Body input)
+  , FromJSON output
+  , HttpMethod method
+  , MonadIO m
+  , HttpBodyAllowed (AllowsBody method) (ProvidesBody (Body input))
+  )
+
+makeRequest :: RequestOK input output m method
+  => Request input output method
   -> String
-  -> App m b
+  -> App m output
 makeRequest r token = do
   res <-
     runReq defaultHttpConfig $
     req
       (method r)
       (url r)
-      (getBody body)
+      (getBody $ input r)
       jsonResponse
       (header "Authorization" $ fromString $ "Bearer " ++ token)
   liftEither $
