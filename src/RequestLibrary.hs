@@ -1,7 +1,12 @@
+{-# LANGUAGE OverloadedStrings #-}
+
 module RequestLibrary where
 
-import Network.HTTP.Req (NoReqBody, GET)
-import Data
-import Requests
+import           Data
+import           Data.String      (fromString)
+import           Network.HTTP.Req
+import           Requests
 
-getEpisodesRequest :: Request NoReqBody GetEpisodesResponse GET
+getEpisodesRequest :: Int -> Request NoReqBody GetEpisodesResponse GET
+getEpisodesRequest seriesId = Request NoReqBody GET $ 
+  https "api.thetvdb.com" /: "series" /: fromString (show seriesId) /: "episodes"

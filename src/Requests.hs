@@ -26,9 +26,9 @@ data Request input output method =
     }
 
 class RequestBody a where
-  type Body a 
+  type Body a
   getBody :: a -> Body a
- 
+
 newtype JsonBody a = JsonBody a
 
 instance ToJSON a => RequestBody (JsonBody a) where

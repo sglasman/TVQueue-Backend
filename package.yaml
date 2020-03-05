@@ -33,6 +33,7 @@ dependencies:
 - text
 - monad-logger
 - hourglass
+- http-client
 
 library:
   source-dirs: src
