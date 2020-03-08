@@ -59,10 +59,6 @@ makeRequest r = do
     (getBody $ input r)
     jsonResponse
     (header "Authorization" $ fromString $ "Bearer " ++ token)
-  liftEither $
-    let code = responseStatusCode res
-     in if code >= 400
-          then Left $ Err (Just code) ""
-          else case fromJSON $ responseBody res of
+  liftEither $ case fromJSON $ responseBody res of
                  Success b -> Right b
                  Error err -> Left $ Err Nothing err
