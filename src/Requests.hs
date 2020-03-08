@@ -53,13 +53,12 @@ makeRequest :: RequestOK input output m method
   -> App m output
 makeRequest r = do
   token <- get
-  res <-
-     req
-      (method r)
-      (url r)
-      (getBody $ input r)
-      jsonResponse
-      (header "Authorization" $ fromString $ "Bearer " ++ token)
+  res <- req
+    (method r)
+    (url r)
+    (getBody $ input r)
+    jsonResponse
+    (header "Authorization" $ fromString $ "Bearer " ++ token)
   liftEither $
     let code = responseStatusCode res
      in if code >= 400
