@@ -23,8 +23,7 @@ import Control.Monad.State.Class (get, put)
 
 runAuthenticated :: RequestOK a b m method => Request a b method -> App m b
 runAuthenticated req = do
-  token <- get
-  let res = makeRequest req token
+  let res = makeRequest req
   catchError res
     (\ err ->
        if code err == Just 401 then getToken >> runAuthenticated req else
@@ -32,7 +31,7 @@ runAuthenticated req = do
 
 getToken :: MonadIO m => App m ()
 getToken = do
- res <- runReq defaultHttpConfig $ req POST
+ res <- req POST
   loginUrl
   (ReqBodyJson Secret.creds)
   jsonResponse

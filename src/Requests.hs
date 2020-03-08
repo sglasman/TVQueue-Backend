@@ -11,7 +11,7 @@ import           Control.Monad.Error.Class  (liftEither)
 import           Control.Monad.IO.Class
 import           Control.Monad.Trans.Except
 import           Control.Monad.Trans.Maybe
-import           Control.Monad.Trans.State
+import           Control.Monad.State.Class  (get)
 import           Data.Aeson
 import           Data.Kind                  (Constraint)
 import           Data.String
@@ -50,12 +50,11 @@ type RequestOK input output m method = (
 
 makeRequest :: RequestOK input output m method
   => Request input output method
-  -> String
   -> App m output
-makeRequest r token = do
+makeRequest r = do
+  token <- get
   res <-
-    runReq defaultHttpConfig $
-    req
+     req
       (method r)
       (url r)
       (getBody $ input r)

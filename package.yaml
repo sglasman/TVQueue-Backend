@@ -34,6 +34,8 @@ dependencies:
 - monad-logger
 - hourglass
 - http-client
+- http-types
+- utf8-string
 
 library:
   source-dirs: src
