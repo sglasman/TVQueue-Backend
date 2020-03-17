@@ -1,40 +1,72 @@
-{-# LANGUAGE DeriveGeneric #-}
-{-# LANGUAGE DeriveAnyClass #-}
-{-# LANGUAGE StandaloneDeriving #-}
+{-# LANGUAGE DeriveAnyClass    #-}
+{-# LANGUAGE DeriveGeneric     #-}
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE TemplateHaskell #-}
 
-module Data where
+module Data (
+  Creds (..)
+  , TokenResponse (..)
+  , MyDay
+  , EpisodeResponse
+  , GetEpisodesResponse (..)
+  , SeasonType (..)
+  , GetSeriesResponse (..)
+)where
 
-import Data.Aeson
-import GHC.Generics (Generic)
-import Time.Types
+import           Data.Aeson
+import           Data.Text
+import           GHC.Generics   (Generic)
+import Data.Time (Day, parseTimeM, defaultTimeLocale)
+import Database.Persist.TH (derivePersistField)
+import Database.Persist.Sql (PersistField, PersistFieldSql, toPersistValue, PersistValue(..))
 
 data Creds = Creds {
   username :: String,
-  userkey :: String,
-  apikey :: String
+  userkey  :: String,
+  apikey   :: String
 } deriving (Generic, Show, ToJSON)
 
 newtype TokenResponse = TokenResponse{token :: String}
   deriving (Generic, Show, FromJSON)
 
-deriving instance Generic Month
-deriving instance Generic Date
+newtype MyDay = MyDay { getDay :: Day } deriving (Show, Read, Eq)
+derivePersistField "MyDay"
 
-deriving instance FromJSON Month
-deriving instance FromJSON Date
+instance FromJSON MyDay where
+  parseJSON = withText "" $ maybe (fail "Could not parse date") (pure . MyDay) . textToDay
+
+timeFormatString :: String
+timeFormatString = "%Y-%m-%d"
+
+textToDay :: Text -> Maybe Day
+textToDay = parseTimeM True defaultTimeLocale timeFormatString . unpack
 
 data EpisodeResponse = EpisodeResponse {
    airedEpisodeNumber :: Maybe Int,
-   airedSeason :: Maybe Int,
-   firstAired :: Maybe Date,
-   episodeName :: Maybe String,
-   id :: Int
-} deriving (Generic, Show, FromJSON)
+   airedSeason        :: Maybe Int,
+   firstAired         :: Maybe MyDay,
+   episodeName        :: Maybe String,
+   tvdbId             :: Int
+} deriving (Generic, Show)
 
-newtype GetEpisodesResponse = GetEpisodesResponse {
-  episodes :: [EpisodeResponse]
+instance FromJSON EpisodeResponse where
+  parseJSON = genericParseJSON defaultOptions {
+    fieldLabelModifier = \s -> if s == "tvdbId" then "id" else s
+    }
+
+data GetEpisodesResponse = GetEpisodesResponse {
+  episodes  :: [EpisodeResponse],
+  pageCount :: Int
 } deriving (Show)
 
 instance FromJSON GetEpisodesResponse where
-  parseJSON = withObject "" (\o -> GetEpisodesResponse <$> o .: "data")
+  parseJSON = withObject "" (\o ->
+      GetEpisodesResponse <$> (o .: "data") <*> (o .: "links" >>= flip (.:) "last")
+   )
+
+data SeasonType = Ongoing | Finished | PastDump | FutureDump deriving (Show, Read, Eq)
+derivePersistField "SeasonType"
+
+newtype GetSeriesResponse = GetSeriesResponse {
+  seriesName :: String
+}

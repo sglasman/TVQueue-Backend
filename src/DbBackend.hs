@@ -1,4 +1,5 @@
 {-# LANGUAGE ExistentialQuantification #-}
+{-# LANGUAGE OverloadedStrings #-}
 
 module DbBackend where
 
@@ -15,3 +16,6 @@ class DbBackend dbBackend where
 newtype SqliteBackend = SqliteBackend { name :: Text }
 instance DbBackend SqliteBackend where
   runBackend (SqliteBackend name) = withSqliteConn name
+  
+defaultBackend :: SqliteBackend
+defaultBackend = SqliteBackend "tvqbh_dev.db"

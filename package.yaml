@@ -32,10 +32,11 @@ dependencies:
 - unliftio-core
 - text
 - monad-logger
-- hourglass
+- time
 - http-client
 - http-types
 - utf8-string
+- containers
 
 library:
   source-dirs: src

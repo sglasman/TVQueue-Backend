@@ -6,7 +6,7 @@
 
 module Requests where
 
-import           App                        (App)
+import           App                        (App, AppState(..))
 import           Control.Monad.Error.Class  (liftEither)
 import           Control.Monad.IO.Class
 import           Control.Monad.Trans.Except
@@ -17,11 +17,14 @@ import           Data.Kind                  (Constraint)
 import           Data.String
 import           Err
 import           Network.HTTP.Req
+import qualified Data.Text as T
+import DbBackend
 
 data Request input output method =
   Request
     { input  :: input
     , method :: method
+    , queryParams :: [(T.Text, String)]
     , url    :: Url Https
     }
 
@@ -48,17 +51,20 @@ type RequestOK input output m method = (
   , HttpBodyAllowed (AllowsBody method) (ProvidesBody (Body input))
   )
 
-makeRequest :: RequestOK input output m method
+queryParamsToOption :: [(T.Text, String)] -> Option Https
+queryParamsToOption = mconcat . map (uncurry (=:))
+
+makeRequest :: (RequestOK input output m method, DbBackend dbBackend)
   => Request input output method
-  -> App m output
+  -> App m dbBackend output
 makeRequest r = do
-  token <- get
+  token <- token <$> get
   res <- req
     (method r)
     (url r)
     (getBody $ input r)
     jsonResponse
-    (header "Authorization" $ fromString $ "Bearer " ++ token)
+    (header "Authorization" (fromString $ "Bearer " ++ token) <> queryParamsToOption (queryParams r))
   liftEither $ case fromJSON $ responseBody res of
                  Success b -> Right b
                  Error err -> Left $ Err Nothing err
