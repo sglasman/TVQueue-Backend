@@ -12,7 +12,9 @@
 {-# LANGUAGE UndecidableInstances       #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 
-module Db where
+module Db
+ 
+ where
 
 import           Control.Monad.IO.Class
 import           Control.Monad.IO.Unlift             (MonadUnliftIO)
@@ -40,12 +42,13 @@ share [mkPersist sqlSettings, mkMigrate "migrateAll"]
     Season
       number Int
       type Data.SeasonType
-      seriesId SeriesId
+      seriesId Int
+      SeasonAndSeries number seriesId
     Episode
       number Int
       tvdbId Int
       name Text
-      airDate Data.MyDay
+      airDate Data.MyDay Maybe
       seasonId SeasonId
       UniqueEpisodeTvdbId tvdbId
   |]
@@ -57,12 +60,6 @@ runDbActionWithBackend action a dbBackend = liftIO $ runStdoutLoggingT $ runBack
 
 runDbAction :: (MonadIO m, DbBackend dbBackend) => DbAction a b -> a -> App m dbBackend b
 runDbAction action input = (dbBackend <$> S.get) >>= runDbActionWithBackend action input
-
-insertSeries :: DbAction Series SeriesId
-insertSeries = insert
-
-addSeries :: Series -> DefaultApp IO SeriesId
-addSeries = runDbAction insertSeries
 
 getSeries :: DbAction Int (Maybe Series)
 getSeries = (fmap . fmap) entityVal <$> getBy . UniqueSeriesTvdbId

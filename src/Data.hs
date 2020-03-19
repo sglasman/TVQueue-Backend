@@ -6,8 +6,8 @@
 module Data (
   Creds (..)
   , TokenResponse (..)
-  , MyDay
-  , EpisodeResponse
+  , MyDay (..)
+  , EpisodeResponse (..)
   , GetEpisodesResponse (..)
   , SeasonType (..)
   , GetSeriesResponse (..)
@@ -69,4 +69,4 @@ derivePersistField "SeasonType"
 
 newtype GetSeriesResponse = GetSeriesResponse {
   seriesName :: String
-}
+} deriving (Generic, FromJSON)
