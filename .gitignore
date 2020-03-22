@@ -6,3 +6,6 @@ src/secret.hs
 out
 stack.yaml.lock
 *.iml
+*.db
+*.db-shm
+*.db-wal

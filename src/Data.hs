@@ -19,6 +19,7 @@ import           GHC.Generics   (Generic)
 import Data.Time (Day, parseTimeM, defaultTimeLocale)
 import Database.Persist.TH (derivePersistField)
 import Database.Persist.Sql (PersistField, PersistFieldSql, toPersistValue, PersistValue(..))
+import Control.Applicative ((<|>))
 
 data Creds = Creds {
   username :: String,
@@ -33,10 +34,10 @@ newtype MyDay = MyDay { getDay :: Day } deriving (Show, Read, Eq)
 derivePersistField "MyDay"
 
 instance FromJSON MyDay where
-  parseJSON = withText "" $ maybe (fail "Could not parse date") (pure . MyDay) . textToDay
+  parseJSON v = withText "" (maybe (fail $ "Could not parse date " ++ show v) (pure . MyDay) . textToDay) v
 
 timeFormatString :: String
-timeFormatString = "%Y-%m-%d"
+timeFormatString = "%Y-%0m-%0d"
 
 textToDay :: Text -> Maybe Day
 textToDay = parseTimeM True defaultTimeLocale timeFormatString . unpack
@@ -50,9 +51,13 @@ data EpisodeResponse = EpisodeResponse {
 } deriving (Generic, Show)
 
 instance FromJSON EpisodeResponse where
-  parseJSON = genericParseJSON defaultOptions {
-    fieldLabelModifier = \s -> if s == "tvdbId" then "id" else s
-    }
+  parseJSON = withObject ""  $ \o -> do
+    airedEpisodeNumber <- o .:? "airedEpisodeNumber"
+    airedSeason <- o .:? "airedSeason"
+    firstAired <- o .:? "firstAired" <|> pure Nothing
+    episodeName <- o .:? "episodeName"
+    tvdbId <- o .: "id"
+    return $ EpisodeResponse airedEpisodeNumber airedSeason firstAired episodeName tvdbId
 
 data GetEpisodesResponse = GetEpisodesResponse {
   episodes  :: [EpisodeResponse],
@@ -69,4 +74,7 @@ derivePersistField "SeasonType"
 
 newtype GetSeriesResponse = GetSeriesResponse {
   seriesName :: String
-} deriving (Generic, FromJSON)
+} deriving (Show)
+
+instance FromJSON GetSeriesResponse where
+  parseJSON = withObject "" (\o -> GetSeriesResponse <$> (o .: "data" >>= flip (.:) "seriesName"))

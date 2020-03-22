@@ -13,7 +13,7 @@ import Control.Monad.IO.Unlift (MonadUnliftIO)
 class DbBackend dbBackend where
   runBackend :: forall a m . (MonadUnliftIO m, MonadLogger m) => dbBackend -> (SqlBackend -> m a) -> m a
 
-newtype SqliteBackend = SqliteBackend { name :: Text }
+newtype SqliteBackend = SqliteBackend { name :: Text } deriving Show
 instance DbBackend SqliteBackend where
   runBackend (SqliteBackend name) = withSqliteConn name
   

@@ -51,4 +51,4 @@ evalAppResult app = (<$>) fst . either (const Nothing) Just <$> evalApp app
 data AppState dbBackend = AppState {
   token :: String,
   dbBackend    :: dbBackend
-}
+} deriving Show
