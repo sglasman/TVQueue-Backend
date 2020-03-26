@@ -1,16 +1,18 @@
 {-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE TemplateHaskell #-}
+{-# LANGUAGE OverloadedStrings #-}
 module OutboundController where
 
 import Data
 import App
 import TVDBAuth
 import RequestLibrary
-import Db (runDbAction, runDbActions, getSeries, runInsertMany, repsertBy, Season(..), Episode(..), SeasonId, EntityField(..), Unique(..), toDbEpisode)
+import Db (runDbAction, runDbActions, getSeries, runInsertMany, repsertBy, Season(..), Episode(..), SeasonId, EntityField(..), Unique(..), toDbEpisode, User(..), UserSeason(..))
 import qualified Db (Series(..), Episode(..))
 import Data.Maybe (maybe, isNothing, catMaybes, mapMaybe)
 import Data.Text (unpack, pack)
 import Control.Monad (when, void, zipWithM_)
-import Database.Persist.Class (insert, insertUnique, putMany, upsert, deleteWhere)
+import Database.Persist.Class (insert, insertUnique, putMany, upsert, deleteWhere, selectFirst)
 import Database.Persist.Sql (Entity(..), (=.), (==.))
 import Data.List (nub)
 import Data.Time.Calendar
@@ -61,3 +63,10 @@ daysAndTodayToSeasonType days today
   | otherwise = Ongoing
  where lastDay = maximum days
        uniqueDays = nub days
+
+insertUserAndSeason :: DefaultApp IO ()
+insertUserAndSeason = do
+  userId <- runDbAction insert User
+  maybeSeason :: Maybe (Entity Season) <- runDbAction (selectFirst []) []
+  $logDebug . pack $ show maybeSeason
+  maybe (return ()) (\season -> void $ runDbAction insert (UserSeason userId (entityKey season) OriginalAirdates)) maybeSeason

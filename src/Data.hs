@@ -1,7 +1,7 @@
 {-# LANGUAGE DeriveAnyClass    #-}
 {-# LANGUAGE DeriveGeneric     #-}
 {-# LANGUAGE OverloadedStrings #-}
-{-# LANGUAGE TemplateHaskell #-}
+{-# LANGUAGE TemplateHaskell   #-}
 
 module Data (
   Creds (..)
@@ -11,15 +11,16 @@ module Data (
   , GetEpisodesResponse (..)
   , SeasonType (..)
   , GetSeriesResponse (..)
+  , UserSeasonType (..)
 )where
 
+import           Control.Applicative  ((<|>))
 import           Data.Aeson
 import           Data.Text
-import           GHC.Generics   (Generic)
-import Data.Time (Day, parseTimeM, defaultTimeLocale)
-import Database.Persist.TH (derivePersistField)
-import Database.Persist.Sql (PersistField, PersistFieldSql, toPersistValue, PersistValue(..))
-import Control.Applicative ((<|>))
+import           Data.Time            (Day, defaultTimeLocale, parseTimeM)
+import           Database.Persist.Sql (PersistField, PersistFieldSql, PersistValue (..), toPersistValue)
+import           Database.Persist.TH  (derivePersistField)
+import           GHC.Generics         (Generic)
 
 data Creds = Creds {
   username :: String,
@@ -71,6 +72,9 @@ instance FromJSON GetEpisodesResponse where
 
 data SeasonType = Ongoing | Finished | PastDump | FutureDump deriving (Show, Read, Eq)
 derivePersistField "SeasonType"
+
+data UserSeasonType = OriginalAirdates | Custom { startDate :: MyDay, interval :: Int } deriving (Show, Read, Eq)
+derivePersistField "UserSeasonType"
 
 newtype GetSeriesResponse = GetSeriesResponse {
   seriesName :: String

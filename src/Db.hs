@@ -44,6 +44,7 @@ share [mkPersist sqlSettings, mkMigrate "migrateAll"]
       type Data.SeasonType
       seriesId Int
       SeasonAndSeries number seriesId
+      deriving Show
     Episode
       number Int Maybe
       tvdbId Int
@@ -51,6 +52,12 @@ share [mkPersist sqlSettings, mkMigrate "migrateAll"]
       airDate Data.MyDay Maybe
       seasonId SeasonId
       UniqueEpisodeTvdbId tvdbId
+    UserSeason sql=user_season
+      userId UserId
+      seasonId SeasonId
+      userSeasonType Data.UserSeasonType
+      UniqueUserSeason userId seasonId
+    User
   |]
 
 type DbAction a b = a -> ReaderT SqlBackend (LoggingT IO) b
