@@ -14,7 +14,7 @@
 
 module Db
  
- where
+where
 
 import           Control.Monad.IO.Class
 import           Control.Monad.IO.Unlift             (MonadUnliftIO)
@@ -52,45 +52,44 @@ share [mkPersist sqlSettings, mkMigrate "migrateAll"]
       airDate Data.MyDay Maybe
       seasonId SeasonId
       UniqueEpisodeTvdbId tvdbId
+      deriving Eq
     UserSeason sql=user_season
       userId UserId
       seasonId SeasonId
       userSeasonType Data.UserSeasonType
+      startDate Data.MyDay Maybe
       UniqueUserSeason userId seasonId
+    UserEpisode sql=user_episode
+      userId UserId
+      episodeTvdbId Int
+      watchedOn Data.MyDay Maybe
+      userEpisodeDate Data.MyDay Maybe
+      UniqueUserEpisode userId episodeTvdbId
     User
   |]
 
-type DbAction a b = a -> ReaderT SqlBackend (LoggingT IO) b
+type DbAction b = ReaderT SqlBackend (LoggingT IO) b
 
-runDbActionsWithBackend :: (DbBackend dbBackend, MonadIO m) => [(DbAction a b, a)] -> dbBackend -> m [b]
-runDbActionsWithBackend actionsWithInputs dbBackend = liftIO $ runStdoutLoggingT $ runBackend dbBackend $ runSqlConn (mapM (\ (action, a) -> action a) actionsWithInputs)
+runDbActionsWithBackend :: (DbBackend dbBackend, MonadIO m) => [DbAction b] -> dbBackend -> m [b]
+runDbActionsWithBackend actions dbBackend = liftIO $ runStdoutLoggingT $ runBackend dbBackend $ runSqlConn (sequence actions)
 
-runDbActions :: (MonadIO m, DbBackend dbBackend) => [(DbAction a b, a)] -> App m dbBackend [b]
-runDbActions actionsWithInputs = (dbBackend <$> S.get) >>= runDbActionsWithBackend actionsWithInputs
+runDbActions :: (MonadIO m, DbBackend dbBackend) => [DbAction b] -> App m dbBackend [b]
+runDbActions actions = (dbBackend <$> S.get) >>= runDbActionsWithBackend actions
 
-runDbAction :: (MonadIO m, DbBackend dbBackend) => DbAction a b -> a -> App m dbBackend b
-runDbAction action input = head <$> runDbActions [(action, input)]
-
-runInsertMany :: (MonadIO m
-  , AtLeastOneUniqueKey record
-  , PersistRecordBackend record SqlBackend
-  , DbBackend dbBackend) =>
-  [record] ->
-  App m dbBackend [Entity record]
-runInsertMany records = do
-  eithers :: [Either (Entity record) (Key record)] <- runDbActions $ map ((,) insertBy) records
-  return $ zipWith (\record e -> either id (flip Entity record) e) records eithers
+runDbAction :: (MonadIO m, DbBackend dbBackend) => DbAction b -> App m dbBackend b
+runDbAction action = head <$> runDbActions [action]
 
 repsertBy :: PersistRecordBackend record SqlBackend
           => Unique record
-          -> DbAction record (Key record)
+          -> record
+          -> DbAction (Key record)
 repsertBy unique record = do
   mExisting <- getBy unique
   case mExisting of
     Just (Entity key _) -> replace key record >> return key
     Nothing -> insert record
 
-getSeries :: DbAction Int (Maybe Series)
+getSeries :: Int -> DbAction (Maybe Series)
 getSeries = (fmap . fmap) entityVal <$> getBy . UniqueSeriesTvdbId
 
 toDbEpisode :: Data.EpisodeResponse -> SeasonId -> Episode
@@ -101,4 +100,4 @@ toDbEpisode episodeResponse = Episode
   (Data.firstAired episodeResponse)
   
 doMigrateAll :: MonadIO m => DefaultApp m ()
-doMigrateAll = runDbAction runMigration migrateAll
+doMigrateAll = runDbAction $ runMigration migrateAll
