@@ -1,3 +1,3 @@
 module SeriesTransforms where
 
-import Data
+import           Data

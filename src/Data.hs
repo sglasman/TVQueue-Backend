@@ -3,24 +3,32 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE TemplateHaskell   #-}
 
-module Data (
-  Creds (..)
-  , TokenResponse (..)
-  , MyDay (..)
-  , EpisodeResponse (..)
-  , GetEpisodesResponse (..)
-  , SeasonType (..)
-  , GetSeriesResponse (..)
-  , UserSeasonType (..)
-)where
+module Data
+  ( Creds(..)
+  , TokenResponse(..)
+  , MyDay(..)
+  , EpisodeResponse(..)
+  , GetEpisodesResponse(..)
+  , SeasonType(..)
+  , GetSeriesResponse(..)
+  , UserSeasonType(..)
+  )
+where
 
-import           Control.Applicative  ((<|>))
+import           Control.Applicative            ( (<|>) )
 import           Data.Aeson
 import           Data.Text
-import           Data.Time            (Day, defaultTimeLocale, parseTimeM)
-import           Database.Persist.Sql (PersistField, PersistFieldSql, PersistValue (..), toPersistValue)
-import           Database.Persist.TH  (derivePersistField)
-import           GHC.Generics         (Generic)
+import           Data.Time                      ( Day
+                                                , defaultTimeLocale
+                                                , parseTimeM
+                                                )
+import           Database.Persist.Sql           ( PersistField
+                                                , PersistFieldSql
+                                                , PersistValue(..)
+                                                , toPersistValue
+                                                )
+import           Database.Persist.TH            ( derivePersistField )
+import           GHC.Generics                   ( Generic )
 
 data Creds = Creds {
   username :: String,
@@ -35,7 +43,11 @@ newtype MyDay = MyDay { getDay :: Day } deriving (Show, Read, Eq)
 derivePersistField "MyDay"
 
 instance FromJSON MyDay where
-  parseJSON v = withText "" (maybe (fail $ "Could not parse date " ++ show v) (pure . MyDay) . textToDay) v
+  parseJSON v = withText
+    ""
+    (maybe (fail $ "Could not parse date " ++ show v) (pure . MyDay) . textToDay
+    )
+    v
 
 timeFormatString :: String
 timeFormatString = "%Y-%0m-%0d"
@@ -52,13 +64,17 @@ data EpisodeResponse = EpisodeResponse {
 } deriving (Generic, Show)
 
 instance FromJSON EpisodeResponse where
-  parseJSON = withObject ""  $ \o -> do
+  parseJSON = withObject "" $ \o -> do
     airedEpisodeNumber <- o .:? "airedEpisodeNumber"
-    airedSeason <- o .:? "airedSeason"
-    firstAired <- o .:? "firstAired" <|> pure Nothing
-    episodeName <- o .:? "episodeName"
-    tvdbId <- o .: "id"
-    return $ EpisodeResponse airedEpisodeNumber airedSeason firstAired episodeName tvdbId
+    airedSeason        <- o .:? "airedSeason"
+    firstAired         <- o .:? "firstAired" <|> pure Nothing
+    episodeName        <- o .:? "episodeName"
+    tvdbId             <- o .: "id"
+    return $ EpisodeResponse airedEpisodeNumber
+                             airedSeason
+                             firstAired
+                             episodeName
+                             tvdbId
 
 data GetEpisodesResponse = GetEpisodesResponse {
   episodes  :: [EpisodeResponse],
@@ -66,9 +82,13 @@ data GetEpisodesResponse = GetEpisodesResponse {
 } deriving (Show)
 
 instance FromJSON GetEpisodesResponse where
-  parseJSON = withObject "" (\o ->
-      GetEpisodesResponse <$> (o .: "data") <*> (o .: "links" >>= flip (.:) "last")
-   )
+  parseJSON = withObject
+    ""
+    (\o ->
+      GetEpisodesResponse
+        <$> (o .: "data")
+        <*> (o .: "links" >>= flip (.:) "last")
+    )
 
 data SeasonType = Ongoing | Finished | PastDump | FutureDump deriving (Show, Read, Eq)
 derivePersistField "SeasonType"
@@ -81,4 +101,6 @@ newtype GetSeriesResponse = GetSeriesResponse {
 } deriving (Show)
 
 instance FromJSON GetSeriesResponse where
-  parseJSON = withObject "" (\o -> GetSeriesResponse <$> (o .: "data" >>= flip (.:) "seriesName"))
+  parseJSON = withObject
+    ""
+    (\o -> GetSeriesResponse <$> (o .: "data" >>= flip (.:) "seriesName"))

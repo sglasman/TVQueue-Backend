@@ -6,19 +6,21 @@
 
 module Requests where
 
-import           App                        (App, AppState(..))
-import           Control.Monad.Error.Class  (liftEither)
+import           App                            ( App
+                                                , AppState(..)
+                                                )
+import           Control.Monad.Error.Class      ( liftEither )
 import           Control.Monad.IO.Class
 import           Control.Monad.Trans.Except
 import           Control.Monad.Trans.Maybe
-import           Control.Monad.State.Class  (get)
+import           Control.Monad.State.Class      ( get )
 import           Data.Aeson
-import           Data.Kind                  (Constraint)
+import           Data.Kind                      ( Constraint )
 import           Data.String
 import           Err
 import           Network.HTTP.Req
-import qualified Data.Text as T
-import DbBackend
+import qualified Data.Text                     as T
+import           DbBackend
 
 data Request input output method =
   Request
@@ -42,29 +44,32 @@ instance RequestBody NoReqBody where
   type Body NoReqBody = NoReqBody
   getBody NoReqBody = NoReqBody
 
-type RequestOK input output m method = (
-  RequestBody input
-  , HttpBody (Body input)
-  , FromJSON output
-  , HttpMethod method
-  , MonadIO m
-  , HttpBodyAllowed (AllowsBody method) (ProvidesBody (Body input))
-  )
+type RequestOK input output m method
+  = ( RequestBody input
+    , HttpBody (Body input)
+    , FromJSON output
+    , HttpMethod method
+    , MonadIO m
+    , HttpBodyAllowed (AllowsBody method) (ProvidesBody (Body input))
+    )
 
 queryParamsToOption :: [(T.Text, String)] -> Option Https
 queryParamsToOption = mconcat . map (uncurry (=:))
 
-makeRequest :: (RequestOK input output m method, DbBackend dbBackend)
+makeRequest
+  :: (RequestOK input output m method, DbBackend dbBackend)
   => Request input output method
   -> App m dbBackend output
 makeRequest r = do
   token <- token <$> get
-  res <- req
+  res   <- req
     (method r)
     (url r)
     (getBody $ input r)
     jsonResponse
-    (header "Authorization" (fromString $ "Bearer " ++ token) <> queryParamsToOption (queryParams r))
+    (  header "Authorization" (fromString $ "Bearer " ++ token)
+    <> queryParamsToOption (queryParams r)
+    )
   liftEither $ case fromJSON $ responseBody res of
-                 Success b -> Right b
-                 Error err -> Left $ Err Nothing err
+    Success b   -> Right b
+    Error   err -> Left $ Err Nothing err
