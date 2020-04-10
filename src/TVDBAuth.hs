@@ -27,16 +27,16 @@ import           Requests
 import           Secret
 
 runAuthenticated
-  :: (RequestOK a b m method) => Request a b method -> DefaultApp m b
+  :: (RequestOK a b method) => Request a b method -> DefaultOutApp b
 runAuthenticated req = do
   let res = makeRequest req
   catchError
     res
     (\err ->
-      if code err == Just 401 then getToken >> runAuthenticated req else res
+      if outCode err == Just 401 then getToken >> runAuthenticated req else res
     )
 
-getToken :: (MonadIO m) => DefaultApp m ()
+getToken :: DefaultOutApp ()
 getToken = do
   res <- req POST loginUrl (ReqBodyJson creds) jsonResponse mempty
   case fromJSON $ responseBody res of

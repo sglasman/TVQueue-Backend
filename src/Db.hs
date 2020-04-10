@@ -47,41 +47,81 @@ import           App
 import qualified Control.Monad.State.Class     as S
 import qualified Data
 import           Data.Maybe                     ( isJust )
+import qualified Data.ByteString.UTF8 as B
 
 share [mkPersist sqlSettings, mkMigrate "migrateAll"]
-  [persistLowerCase|
-    Series sql=series
-      name Text
-      tvdbId Int
-      UniqueSeriesTvdbId tvdbId
-      deriving Show Read
-    Season
-      number Int
-      type Data.SeasonType
-      seriesId Int
-      SeasonAndSeries number seriesId
-      deriving Show
-    Episode
-      number Int Maybe
-      tvdbId Int
-      name Text Maybe
-      airDate Data.MyDay Maybe
-      seasonId SeasonId
-      UniqueEpisodeTvdbId tvdbId
-      deriving Eq
-    UserSeason sql=user_season
-      userId UserId
-      seasonId SeasonId
-      userSeasonType Data.UserSeasonType
-      startDate Data.MyDay Maybe
-      UniqueUserSeason userId seasonId
-    UserEpisode sql=user_episode
-      userId UserId
-      episodeTvdbId Int
-      watchedOn Data.MyDay Maybe
-      userEpisodeDate Data.MyDay Maybe
-      UniqueUserEpisode userId episodeTvdbId
-    User
+  [persistLowerCase|
+
+    Series sql=series
+
+      name Text
+
+      tvdbId Int
+
+      UniqueSeriesTvdbId tvdbId
+
+      deriving Show Read
+
+    Season
+
+      number Int
+
+      type Data.SeasonType
+
+      seriesId Int
+
+      SeasonAndSeries number seriesId
+
+      deriving Show
+
+    Episode
+
+      number Int Maybe
+
+      tvdbId Int
+
+      name Text Maybe
+
+      airDate Data.MyDay Maybe
+
+      seasonId SeasonId
+
+      UniqueEpisodeTvdbId tvdbId
+
+      deriving Eq
+
+    UserSeason sql=user_season
+
+      userId UserId
+
+      seasonId SeasonId
+
+      userSeasonType Data.UserSeasonType
+
+      startDate Data.MyDay Maybe
+
+      UniqueUserSeason userId seasonId
+
+    UserEpisode sql=user_episode
+
+      userId UserId
+
+      episodeTvdbId Int
+
+      watchedOn Data.MyDay Maybe
+
+      userEpisodeDate Data.MyDay Maybe
+
+      UniqueUserEpisode userId episodeTvdbId
+
+    User
+    
+      email Text
+
+      passwordHash B.ByteString
+      
+      UniqueEmail email
+
   |]
 
 type DbAction b = ReaderT SqlBackend (LoggingT IO) b
@@ -93,12 +133,12 @@ runDbActionsWithBackend actions dbBackend =
     (sequence actions)
 
 runDbActions
-  :: (MonadIO m, DbBackend dbBackend) => [DbAction b] -> App m dbBackend [b]
+  :: DbBackend dbBackend => [DbAction b] -> App err dbBackend [b]
 runDbActions actions =
   (dbBackend <$> S.get) >>= runDbActionsWithBackend actions
 
 runDbAction
-  :: (MonadIO m, DbBackend dbBackend) => DbAction b -> App m dbBackend b
+  :: DbBackend dbBackend => DbAction b -> App err dbBackend b
 runDbAction action = head <$> runDbActions [action]
 
 repsertBy
@@ -122,5 +162,5 @@ toDbEpisode episodeResponse = Episode
   (fmap pack . Data.episodeName $ episodeResponse)
   (Data.firstAired episodeResponse)
 
-doMigrateAll :: MonadIO m => DefaultApp m ()
+doMigrateAll :: DefaultApp () ()
 doMigrateAll = runDbAction $ runMigration migrateAll

@@ -104,3 +104,4 @@ instance FromJSON GetSeriesResponse where
   parseJSON = withObject
     ""
     (\o -> GetSeriesResponse <$> (o .: "data" >>= flip (.:) "seriesName"))
+   

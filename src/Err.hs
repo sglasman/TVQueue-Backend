@@ -1,7 +1,7 @@
 module Err where
 
-data Err =
-  Err
-    { code    :: Maybe Int
-    , message :: String
+data OutErr =
+  OutErr
+    { outCode :: Maybe Int
+    , outMessage :: String
     } deriving (Show)

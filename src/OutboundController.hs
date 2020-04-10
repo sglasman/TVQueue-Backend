@@ -63,14 +63,14 @@ import           RequestLibrary
 import           TVDBAuth
 import           Util
 
-getEpisodesCollated :: Int -> DefaultApp IO [EpisodeResponse]
+getEpisodesCollated :: Int -> DefaultOutApp [EpisodeResponse]
 getEpisodesCollated id = do
   firstPage  <- runAuthenticated $ getEpisodesRequest id 1
   otherPages <- mapM (runAuthenticated . getEpisodesRequest id)
                      [2 .. (pageCount firstPage)]
   return $ episodes firstPage ++ (otherPages >>= episodes)
 
-addOrUpdateSeries :: Int -> DefaultApp IO ()
+addOrUpdateSeries :: Int -> DefaultOutApp ()
 addOrUpdateSeries seriesId = do
   maybeSeries <- runDbAction $ getSeries seriesId
   name        <- maybe
@@ -81,7 +81,7 @@ addOrUpdateSeries seriesId = do
     (Db.Series (pack name) seriesId)
   updateSeasonsFromSeries seriesId
 
-updateSeasonsFromSeries :: Int -> DefaultApp IO ()
+updateSeasonsFromSeries :: Int -> DefaultOutApp ()
 updateSeasonsFromSeries seriesId = do
   episodes <- getEpisodesCollated seriesId
   let seasonNumbers :: [Int] = catMaybes . nub $ map airedSeason episodes
@@ -102,7 +102,7 @@ updateSeasonsFromSeries seriesId = do
             (map episodesForSeason seasonNumbers)
 
 updateEpisodesForSeasonIfRequired
-  :: Entity Season -> [EpisodeResponse] -> DefaultApp IO ()
+  :: Entity Season -> [EpisodeResponse] -> DefaultOutApp ()
 updateEpisodesForSeasonIfRequired seasonId episodes = do
   maybeEpisodeEntities :: [Maybe (Entity Episode)] <- runDbActions
     $ map (getBy . UniqueEpisodeTvdbId . tvdbId) episodes
@@ -120,7 +120,7 @@ updateEpisodesForSeason
   :: Entity Season
   -> [EpisodeResponse]
   -> [Maybe (Entity Episode)]
-  -> DefaultApp IO ()
+  -> DefaultOutApp ()
 updateEpisodesForSeason season eps ents = do
   userSeasons :: [UserSeason] <-
     (fmap . fmap) entityVal . runDbAction $ selectList

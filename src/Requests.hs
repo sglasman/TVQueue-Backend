@@ -44,12 +44,11 @@ instance RequestBody NoReqBody where
   type Body NoReqBody = NoReqBody
   getBody NoReqBody = NoReqBody
 
-type RequestOK input output m method
+type RequestOK input output method
   = ( RequestBody input
     , HttpBody (Body input)
     , FromJSON output
     , HttpMethod method
-    , MonadIO m
     , HttpBodyAllowed (AllowsBody method) (ProvidesBody (Body input))
     )
 
@@ -57,9 +56,9 @@ queryParamsToOption :: [(T.Text, String)] -> Option Https
 queryParamsToOption = mconcat . map (uncurry (=:))
 
 makeRequest
-  :: (RequestOK input output m method, DbBackend dbBackend)
+  :: (RequestOK input output method, DbBackend dbBackend)
   => Request input output method
-  -> App m dbBackend output
+  -> App OutErr dbBackend output
 makeRequest r = do
   token <- token <$> get
   res   <- req
@@ -72,4 +71,4 @@ makeRequest r = do
     )
   liftEither $ case fromJSON $ responseBody res of
     Success b   -> Right b
-    Error   err -> Left $ Err Nothing err
+    Error   err -> Left $ OutErr Nothing err
