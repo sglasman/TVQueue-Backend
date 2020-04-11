@@ -38,6 +38,7 @@ dependencies:
 - utf8-string
 - containers
 - servant-server
+- servant-auth-server
 - pwstore-fast
 - wai
 - warp

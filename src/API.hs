@@ -2,17 +2,42 @@
 {-# LANGUAGE TypeOperators #-}
 {-# LANGUAGE StandaloneDeriving #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
-module API (startService) where
+{-# LANGUAGE OverloadedStrings #-}
+module API
+  ( startService
+  )
+where
 
-import Servant ((:>), (:<|>), ReqBody, JSON, PostCreated, NoContent(..), ServerT, Server, serve, hoistServer, Handler(..), Proxy(..))
-import Control.Monad.Trans.Except
-import RequestTypes (CreateUserRequest)
-import App (DefaultInApp, evalApp)
-import qualified Network.Wai as Wai
-import qualified Network.Wai.Handler.Warp as Warp
-import InboundController
+import           Servant                        ( (:>)
+                                                , (:<|>)(..)
+                                                , ReqBody
+                                                , JSON
+                                                , PostCreated
+                                                , Post
+                                                , NoContent(..)
+                                                , ServerT
+                                                , Server
+                                                , serve
+                                                , hoistServer
+                                                , Handler(..)
+                                                , Proxy(..)
+                                                )
+import Servant.Auth.Server (JWT)
+import           Control.Monad.Trans.Except
+import           RequestTypes                   ( CreateUserRequest, LoginRequest )
+import           App                            ( DefaultInApp
+                                                , evalApp
+                                                )
+import qualified Network.Wai                   as Wai
+import qualified Network.Wai.Handler.Warp      as Warp
+import           InboundController
+import Data.Text (Text, pack)
 
-type API = "users" :> ReqBody '[JSON] CreateUserRequest :> PostCreated '[JSON] NoContent
+type UnauthAPI
+  = "users" :> ReqBody '[JSON] CreateUserRequest :> PostCreated '[JSON] NoContent :<|>
+    "login" :> ReqBody '[JSON] LoginRequest :> Post '[JSON] String
+
+type API = UnauthAPI
 
 newtype ApiApp a = ApiApp { app :: DefaultInApp a }
 
@@ -27,7 +52,8 @@ proxy :: Proxy API
 proxy = Proxy
 
 appServerT :: ServerT API ApiApp
-appServerT = ApiApp . fmap (const NoContent) . handleCreateUserRequest
+appServerT = (ApiApp . fmap (const NoContent) . handleCreateUserRequest) :<|>
+             const (return "")
 
 server :: Server API
 server = hoistServer proxy apiAppToHandler appServerT

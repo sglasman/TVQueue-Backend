@@ -2,12 +2,17 @@
 {-# LANGUAGE DeriveAnyClass #-}
 module RequestTypes where
 
-import Data.Aeson (FromJSON)
-import Data.Text (Text)
+import           Data.Aeson                     ( FromJSON )
+import           Data.Text                      ( Text )
 
-import GHC.Generics (Generic)
+import           GHC.Generics                   ( Generic )
 
 data CreateUserRequest = CreateUserRequest {
-    username :: Text,
+    email :: Text,
     password :: Text
+} deriving (Generic, FromJSON)
+
+data LoginRequest = LoginRequest {
+    loginEmail :: Text,
+    loginPassword :: Text
 } deriving (Generic, FromJSON)

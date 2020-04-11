@@ -1,5 +1,8 @@
 {-# LANGUAGE ExistentialQuantification #-}
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE ConstraintKinds #-}
+{-# LANGUAGE MultiParamTypeClasses #-}
+{-# LANGUAGE RankNTypes #-}
 
 module DbBackend where
 
@@ -13,9 +16,13 @@ import           Control.Monad.Logger           ( runStdoutLoggingT
                                                 , MonadLogger
                                                 )
 import           Control.Monad.IO.Unlift        ( MonadUnliftIO )
+import Util (Pointed(..))
 
 class DbBackend dbBackend where
   runBackend :: forall a m . (MonadUnliftIO m, MonadLogger m) => dbBackend -> (SqlBackend -> m a) -> m a
+
+class ProvidesDbBackend a where
+  provideBackend :: (forall backend . (DbBackend backend) => (backend -> b)) -> (a -> b)
 
 newtype SqliteBackend = SqliteBackend { name :: Text } deriving Show
 instance DbBackend SqliteBackend where
@@ -23,3 +30,5 @@ instance DbBackend SqliteBackend where
 
 defaultBackend :: SqliteBackend
 defaultBackend = SqliteBackend "tvqbh_dev.db"
+
+instance Pointed SqliteBackend where point = defaultBackend

@@ -11,6 +11,7 @@
 {-# LANGUAGE TypeFamilies               #-}
 {-# LANGUAGE UndecidableInstances       #-}
 {-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE AllowAmbiguousTypes #-}
 
 module Db where
 
@@ -47,81 +48,45 @@ import           App
 import qualified Control.Monad.State.Class     as S
 import qualified Data
 import           Data.Maybe                     ( isJust )
-import qualified Data.ByteString.UTF8 as B
+import qualified Data.ByteString.UTF8          as B
 
 share [mkPersist sqlSettings, mkMigrate "migrateAll"]
   [persistLowerCase|
-
     Series sql=series
-
       name Text
-
       tvdbId Int
-
       UniqueSeriesTvdbId tvdbId
-
       deriving Show Read
-
     Season
-
       number Int
-
       type Data.SeasonType
-
       seriesId Int
-
       SeasonAndSeries number seriesId
-
       deriving Show
-
     Episode
-
       number Int Maybe
-
       tvdbId Int
-
       name Text Maybe
-
       airDate Data.MyDay Maybe
-
       seasonId SeasonId
-
       UniqueEpisodeTvdbId tvdbId
-
       deriving Eq
-
     UserSeason sql=user_season
-
       userId UserId
-
       seasonId SeasonId
-
       userSeasonType Data.UserSeasonType
-
       startDate Data.MyDay Maybe
-
       UniqueUserSeason userId seasonId
-
     UserEpisode sql=user_episode
-
       userId UserId
-
       episodeTvdbId Int
-
       watchedOn Data.MyDay Maybe
-
       userEpisodeDate Data.MyDay Maybe
-
       UniqueUserEpisode userId episodeTvdbId
-
     User
-    
       email Text
-
       passwordHash B.ByteString
-      
       UniqueEmail email
-
   |]
 
 type DbAction b = ReaderT SqlBackend (LoggingT IO) b
@@ -132,13 +97,10 @@ runDbActionsWithBackend actions dbBackend =
   liftIO $ runStdoutLoggingT $ runBackend dbBackend $ runSqlConn
     (sequence actions)
 
-runDbActions
-  :: DbBackend dbBackend => [DbAction b] -> App err dbBackend [b]
-runDbActions actions =
-  (dbBackend <$> S.get) >>= runDbActionsWithBackend actions
+runDbActions :: ProvidesDbBackend state => [DbAction b] -> App err state [b]
+runDbActions actions = S.get >>= provideBackend (runDbActionsWithBackend actions) 
 
-runDbAction
-  :: DbBackend dbBackend => DbAction b -> App err dbBackend b
+runDbAction :: ProvidesDbBackend state => DbAction b -> App err state b
 runDbAction action = head <$> runDbActions [action]
 
 repsertBy
@@ -162,5 +124,5 @@ toDbEpisode episodeResponse = Episode
   (fmap pack . Data.episodeName $ episodeResponse)
   (Data.firstAired episodeResponse)
 
-doMigrateAll :: DefaultApp () ()
+doMigrateAll :: (ProvidesDbBackend state) => App () state ()
 doMigrateAll = runDbAction $ runMigration migrateAll

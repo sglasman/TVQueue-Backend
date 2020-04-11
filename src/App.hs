@@ -20,40 +20,61 @@ import qualified Network.HTTP.Client           as L
 import           Network.HTTP.Req               ( handleHttpException )
 import qualified Network.HTTP.Req              as R
 import           Network.HTTP.Types.Status
-import Servant (Handler(..), ServerError)
+import           Servant                        ( Handler(..)
+                                                , ServerError
+                                                )
+import Servant.Auth.Server (JWTSettings)
+import Util (Pointed(..))
 
-data AppState dbBackend = AppState {
+data OutAppState dbBackend = OutAppState {
   token :: String,
-  dbBackend    :: dbBackend
+  outBackend    :: dbBackend
 } deriving Show
 
-newtype App err backend a = App { runApp :: LoggingT (StateT (AppState backend) (ExceptT err IO)) a}
+instance (Pointed dbBackend) => Pointed (OutAppState dbBackend) where
+  point = OutAppState "" point
 
-type DefaultApp err a = App err SqliteBackend a
-type DefaultOutApp a = DefaultApp OutErr a
-type DefaultInApp a = DefaultApp ServerError a
+instance (DbBackend dbBackend) => ProvidesDbBackend (OutAppState dbBackend) where
+  provideBackend f = f . outBackend
 
-deriving instance Functor (App err backend)
-deriving instance Applicative (App err backend)
-deriving instance Monad (App err backend)
-deriving instance MonadIO (App err backend)
-deriving instance MonadState (AppState backend) (App err backend)
-deriving instance MonadError err (App err backend)
-deriving instance MonadLogger (App err backend)
+data InAppState dbBackend = InAppState {
+  jwtSettings :: Maybe JWTSettings,
+  inBackend :: dbBackend
+}
+
+instance (Pointed dbBackend) => Pointed (InAppState dbBackend) where
+  point = InAppState Nothing point
+
+instance (DbBackend dbBackend) => ProvidesDbBackend (InAppState dbBackend) where
+  provideBackend f = f . inBackend
+
+newtype App err state a = App { runApp :: LoggingT (StateT state (ExceptT err IO)) a}
+
+type DefaultOutApp a = App OutErr (OutAppState SqliteBackend) a
+type DefaultInApp a = App ServerError (InAppState SqliteBackend) a
+
+deriving instance Functor (App err state)
+deriving instance Applicative (App err state)
+deriving instance Monad (App err state)
+deriving instance MonadIO (App err state)
+deriving instance MonadState state (App err state)
+deriving instance MonadError err (App err state)
+deriving instance MonadLogger (App err state)
 
 instance R.MonadHttp (App OutErr backend) where
   handleHttpException (R.VanillaHttpException (L.HttpExceptionRequest _ (L.StatusCodeException response outMessage)))
-    = liftEither . Left $ OutErr (Just . statusCode $ L.responseStatus response)
-                              (B.toString outMessage)
+    = liftEither . Left $ OutErr
+      (Just . statusCode $ L.responseStatus response)
+      (B.toString outMessage)
   handleHttpException e = liftIO $ throwIO e
 
-evalApp :: DefaultApp err a -> IO (Either err (a, AppState SqliteBackend))
+evalApp :: (Pointed state) => App err state a -> IO (Either err (a, state))
 evalApp (App app) =
-  runExceptT (runStateT (runStdoutLoggingT app) (AppState "" defaultBackend))
+  runExceptT (runStateT (runStdoutLoggingT app) point)
 
-evalState :: DefaultApp err a -> IO (Maybe (AppState SqliteBackend))
+evalState :: (Pointed state) => App err state a -> IO (Maybe state)
 evalState app = (<$>) snd . either (const Nothing) Just <$> evalApp app
 
-evalAppResult :: DefaultApp err a -> IO (Maybe a)
+evalAppResult :: (Pointed state) => App err state a -> IO (Maybe a)
 evalAppResult app = (<$>) fst . either (const Nothing) Just <$> evalApp app
 

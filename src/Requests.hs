@@ -7,8 +7,9 @@
 module Requests where
 
 import           App                            ( App
-                                                , AppState(..)
-                                                )
+                                                , OutAppState(..)
+                                                , DefaultOutApp)
+                                              
 import           Control.Monad.Error.Class      ( liftEither )
 import           Control.Monad.IO.Class
 import           Control.Monad.Trans.Except
@@ -56,9 +57,9 @@ queryParamsToOption :: [(T.Text, String)] -> Option Https
 queryParamsToOption = mconcat . map (uncurry (=:))
 
 makeRequest
-  :: (RequestOK input output method, DbBackend dbBackend)
+  :: (RequestOK input output method)
   => Request input output method
-  -> App OutErr dbBackend output
+  -> DefaultOutApp output
 makeRequest r = do
   token <- token <$> get
   res   <- req

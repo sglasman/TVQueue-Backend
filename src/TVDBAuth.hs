@@ -32,8 +32,9 @@ runAuthenticated req = do
   let res = makeRequest req
   catchError
     res
-    (\err ->
-      if outCode err == Just 401 then getToken >> runAuthenticated req else res
+    (\err -> if outCode err == Just 401
+      then getToken >> runAuthenticated req
+      else res
     )
 
 getToken :: DefaultOutApp ()
