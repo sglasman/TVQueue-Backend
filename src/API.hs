@@ -53,7 +53,7 @@ proxy = Proxy
 
 appServerT :: ServerT API ApiApp
 appServerT = (ApiApp . fmap (const NoContent) . handleCreateUserRequest) :<|>
-             const (return "")
+             (ApiApp . handleLoginRequest)
 
 server :: Server API
 server = hoistServer proxy apiAppToHandler appServerT

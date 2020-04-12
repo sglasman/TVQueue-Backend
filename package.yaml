@@ -42,6 +42,7 @@ dependencies:
 - pwstore-fast
 - wai
 - warp
+- bytestring
 
 library:
   source-dirs: src

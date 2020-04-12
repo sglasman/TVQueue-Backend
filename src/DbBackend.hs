@@ -19,7 +19,7 @@ import           Control.Monad.IO.Unlift        ( MonadUnliftIO )
 import Util (Pointed(..))
 
 class DbBackend dbBackend where
-  runBackend :: forall a m . (MonadUnliftIO m, MonadLogger m) => dbBackend -> (SqlBackend -> m a) -> m a
+  runBackend :: (MonadUnliftIO m, MonadLogger m) => dbBackend -> (SqlBackend -> m a) -> m a
 
 class ProvidesDbBackend a where
   provideBackend :: (forall backend . (DbBackend backend) => (backend -> b)) -> (a -> b)

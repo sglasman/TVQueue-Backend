@@ -42,6 +42,9 @@ data InAppState dbBackend = InAppState {
   inBackend :: dbBackend
 }
 
+instance Show (InAppState dbBackend) where
+  show = const "InAppState"
+
 instance (Pointed dbBackend) => Pointed (InAppState dbBackend) where
   point = InAppState Nothing point
 
