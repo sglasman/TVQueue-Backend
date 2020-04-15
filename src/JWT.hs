@@ -24,10 +24,12 @@ import           Data.ByteString.Lazy.UTF8      ( toString )
 
 instance ToJWT Text
 
+getJWTSettings :: DefaultInApp JWTSettings
+getJWTSettings = gets jwtSettings >>= maybe refreshJWTSettings return
+
 generateJWT :: Text -> DefaultInApp String
 generateJWT email = do
-  maybeSettings <- gets jwtSettings
-  settings      <- maybe refreshJWTSettings return maybeSettings
+  settings <- getJWTSettings
   liftIO (makeJWT email settings Nothing) >>= either
     (const $ refreshJWTSettings >> generateJWT email)
     (return . toString)

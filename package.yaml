@@ -68,3 +68,7 @@ tests:
     - -with-rtsopts=-N
     dependencies:
     - tvqbh
+    - QuickCheck
+    - quickcheck-instances
+    - generic-random
+    - directory

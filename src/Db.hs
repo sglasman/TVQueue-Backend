@@ -124,5 +124,5 @@ toDbEpisode episodeResponse = Episode
   (fmap pack . Data.episodeName $ episodeResponse)
   (Data.firstAired episodeResponse)
 
-doMigrateAll :: (ProvidesDbBackend state) => App () state ()
+doMigrateAll :: (ProvidesDbBackend state) => App err state ()
 doMigrateAll = runDbAction $ runMigration migrateAll

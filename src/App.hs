@@ -70,14 +70,24 @@ instance R.MonadHttp (App OutErr backend) where
       (Just . statusCode $ L.responseStatus response)
       (B.toString outMessage)
   handleHttpException e = liftIO $ throwIO e
+  
+evalAppFromState :: state -> App err state a -> IO (Either err (a, state))
+evalAppFromState state (App app) = runExceptT (runStateT (runStdoutLoggingT app) state)
 
 evalApp :: (Pointed state) => App err state a -> IO (Either err (a, state))
-evalApp (App app) =
-  runExceptT (runStateT (runStdoutLoggingT app) point)
+evalApp = evalAppFromState point
+
+getMaybeState :: Either err (a, state) -> Maybe state
+getMaybeState = (<$>) snd . either (const Nothing) Just
 
 evalState :: (Pointed state) => App err state a -> IO (Maybe state)
-evalState app = (<$>) snd . either (const Nothing) Just <$> evalApp app
+evalState app = getMaybeState <$> evalApp app
+
+getMaybeResult :: Either err (a, state) -> Maybe a
+getMaybeResult = (<$>) fst . either (const Nothing) Just
 
 evalAppResult :: (Pointed state) => App err state a -> IO (Maybe a)
-evalAppResult app = (<$>) fst . either (const Nothing) Just <$> evalApp app
+evalAppResult app = getMaybeResult <$> evalApp app
 
+evalInAppTest :: DefaultInApp a -> IO (Either ServerError (a, InAppState SqliteBackend))
+evalInAppTest = evalAppFromState $ InAppState Nothing testBackend

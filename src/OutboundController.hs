@@ -1,7 +1,5 @@
-{-# LANGUAGE OverloadedStrings   #-}
 {-# LANGUAGE ScopedTypeVariables #-}
-{-# LANGUAGE TemplateHaskell     #-}
-module OutboundController where
+module OutboundController () where
 
 import           App
 import           Control.Monad                  ( unless
@@ -182,3 +180,5 @@ daysAndTodayToSeasonType days today
  where
   lastDay    = maximum days
   uniqueDays = nub days
+  
+  
