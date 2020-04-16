@@ -7,8 +7,8 @@
 module Requests where
 
 import           App                            ( App
-                                                , OutAppState(..)
-                                                , DefaultOutApp)
+                                                , BridgeAppState(..)
+                                                , DefaultBridgeApp)
                                               
 import           Control.Monad.Error.Class      ( liftEither )
 import           Control.Monad.IO.Class
@@ -55,21 +55,3 @@ type RequestOK input output method
 
 queryParamsToOption :: [(T.Text, String)] -> Option Https
 queryParamsToOption = mconcat . map (uncurry (=:))
-
-makeRequest
-  :: (RequestOK input output method)
-  => Request input output method
-  -> DefaultOutApp output
-makeRequest r = do
-  token <- token <$> get
-  res   <- req
-    (method r)
-    (url r)
-    (getBody $ input r)
-    jsonResponse
-    (  header "Authorization" (fromString $ "Bearer " ++ token)
-    <> queryParamsToOption (queryParams r)
-    )
-  liftEither $ case fromJSON $ responseBody res of
-    Success b   -> Right b
-    Error   err -> Left $ OutErr Nothing err

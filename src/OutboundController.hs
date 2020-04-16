@@ -1,5 +1,5 @@
 {-# LANGUAGE ScopedTypeVariables #-}
-module OutboundController () where
+module OutboundController where
 
 import           App
 import           Control.Monad                  ( unless
@@ -21,6 +21,7 @@ import           Data.Text                      ( pack
                                                 , unpack
                                                 )
 import           Data.Time.Calendar
+import           Control.Monad.State            ( gets )
 import           Data.Time.Clock
 import           Database.Persist.Class         ( deleteWhere
                                                 , get
@@ -58,30 +59,28 @@ import qualified Db                             ( Episode(..)
                                                 , Series(..)
                                                 )
 import           RequestLibrary
-import           TVDBAuth
+import           OutApp
 import           Util
+import           TVDBBridge                     ( TVDBBridge(..) )
+import qualified Control.Monad.State           as S
+                                                ( get
+                                                , gets
+                                                )
 
-getEpisodesCollated :: Int -> DefaultOutApp [EpisodeResponse]
-getEpisodesCollated id = do
-  firstPage  <- runAuthenticated $ getEpisodesRequest id 1
-  otherPages <- mapM (runAuthenticated . getEpisodesRequest id)
-                     [2 .. (pageCount firstPage)]
-  return $ episodes firstPage ++ (otherPages >>= episodes)
-
-addOrUpdateSeries :: Int -> DefaultOutApp ()
+addOrUpdateSeries :: (TVDBBridge bridge) => Int -> DefaultBridgeApp bridge ()
 addOrUpdateSeries seriesId = do
   maybeSeries <- runDbAction $ getSeries seriesId
-  name        <- maybe
-    (fmap seriesName $ runAuthenticated $ getSeriesRequest seriesId)
-    (return . unpack . Db.seriesName)
-    maybeSeries
+  name        <- maybe (getSeriesName seriesId)
+                       (return . unpack . Db.seriesName)
+                       maybeSeries
   when (isNothing maybeSeries) . void . runDbAction $ insert
     (Db.Series (pack name) seriesId)
   updateSeasonsFromSeries seriesId
 
-updateSeasonsFromSeries :: Int -> DefaultOutApp ()
+updateSeasonsFromSeries
+  :: (TVDBBridge bridge) => Int -> DefaultBridgeApp bridge ()
 updateSeasonsFromSeries seriesId = do
-  episodes <- getEpisodesCollated seriesId
+  episodes <- getEpisodes seriesId
   let seasonNumbers :: [Int] = catMaybes . nub $ map airedSeason episodes
   let episodesForSeason n = filter (\ep -> airedSeason ep == Just n) episodes
   let seasonTypeOfSeason n = daysToSeasonType
@@ -100,7 +99,10 @@ updateSeasonsFromSeries seriesId = do
             (map episodesForSeason seasonNumbers)
 
 updateEpisodesForSeasonIfRequired
-  :: Entity Season -> [EpisodeResponse] -> DefaultOutApp ()
+  :: (TVDBBridge bridge)
+  => Entity Season
+  -> [EpisodeResponse]
+  -> DefaultBridgeApp bridge ()
 updateEpisodesForSeasonIfRequired seasonId episodes = do
   maybeEpisodeEntities :: [Maybe (Entity Episode)] <- runDbActions
     $ map (getBy . UniqueEpisodeTvdbId . tvdbId) episodes
@@ -115,10 +117,11 @@ updateEpisodesForSeasonIfRequired seasonId episodes = do
     $ updateEpisodesForSeason seasonId changedEpisodes changedEntities
 
 updateEpisodesForSeason
-  :: Entity Season
+  :: TVDBBridge bridge
+  => Entity Season
   -> [EpisodeResponse]
   -> [Maybe (Entity Episode)]
-  -> DefaultOutApp ()
+  -> DefaultBridgeApp bridge ()
 updateEpisodesForSeason season eps ents = do
   userSeasons :: [UserSeason] <-
     (fmap . fmap) entityVal . runDbAction $ selectList
@@ -141,14 +144,15 @@ createUpdates
   -> Maybe (Entity Episode)
   -> [DbAction ()]
 createUpdates season userSeasons episode = maybe
-  (map
-    (\userSeason -> void . insert $ UserEpisode
-      (userSeasonUserId userSeason)
-      (tvdbId episode)
-      Nothing
-      (getUserDate userSeason episode)
-    )
-    userSeasons
+  ( (void . insert . toDbEpisode episode $ entityKey season)
+  : map
+      (\userSeason -> void . insert $ UserEpisode
+        (userSeasonUserId userSeason)
+        (tvdbId episode)
+        Nothing
+        (getUserDate userSeason episode)
+      )
+      userSeasons
   )
   (\ent ->
     replace (entityKey ent) (toDbEpisode episode $ entityKey season)
@@ -180,5 +184,5 @@ daysAndTodayToSeasonType days today
  where
   lastDay    = maximum days
   uniqueDays = nub days
-  
-  
+
+

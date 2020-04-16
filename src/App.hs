@@ -8,10 +8,10 @@ import           Control.Exception.Base         ( throwIO )
 import           Control.Monad.Error.Class
 import           Control.Monad.IO.Class
 import           Control.Monad.Logger
-import           Control.Monad.State.Class
+import           Control.Monad.State (MonadState, put)
+import Control.Monad.Trans.State (StateT, runStateT)
 import           Control.Monad.Trans.Except
 import           Control.Monad.Trans.Maybe
-import           Control.Monad.Trans.State
 import qualified Data.ByteString.UTF8          as B
 import           Database.Persist.Sql           ( SqlBackend )
 import           DbBackend
@@ -26,15 +26,15 @@ import           Servant                        ( Handler(..)
 import Servant.Auth.Server (JWTSettings)
 import Util (Pointed(..))
 
-data OutAppState dbBackend = OutAppState {
-  token :: String,
+data BridgeAppState bridge dbBackend = BridgeAppState {
+  bridge :: bridge,
   outBackend    :: dbBackend
 } deriving Show
 
-instance (Pointed dbBackend) => Pointed (OutAppState dbBackend) where
-  point = OutAppState "" point
+instance (Pointed bridge, Pointed dbBackend) => Pointed (BridgeAppState bridge dbBackend) where
+  point = BridgeAppState point point
 
-instance (DbBackend dbBackend) => ProvidesDbBackend (OutAppState dbBackend) where
+instance (DbBackend dbBackend) => ProvidesDbBackend (BridgeAppState bridge dbBackend) where
   provideBackend f = f . outBackend
 
 data InAppState dbBackend = InAppState {
@@ -53,7 +53,7 @@ instance (DbBackend dbBackend) => ProvidesDbBackend (InAppState dbBackend) where
 
 newtype App err state a = App { runApp :: LoggingT (StateT state (ExceptT err IO)) a}
 
-type DefaultOutApp a = App OutErr (OutAppState SqliteBackend) a
+type DefaultBridgeApp bridge a = App OutErr (BridgeAppState bridge SqliteBackend) a
 type DefaultInApp a = App ServerError (InAppState SqliteBackend) a
 
 deriving instance Functor (App err state)
@@ -70,7 +70,7 @@ instance R.MonadHttp (App OutErr backend) where
       (Just . statusCode $ L.responseStatus response)
       (B.toString outMessage)
   handleHttpException e = liftIO $ throwIO e
-  
+
 evalAppFromState :: state -> App err state a -> IO (Either err (a, state))
 evalAppFromState state (App app) = runExceptT (runStateT (runStdoutLoggingT app) state)
 
@@ -91,3 +91,10 @@ evalAppResult app = getMaybeResult <$> evalApp app
 
 evalInAppTest :: DefaultInApp a -> IO (Either ServerError (a, InAppState SqliteBackend))
 evalInAppTest = evalAppFromState $ InAppState Nothing testBackend
+
+fmapOtherArgs :: Pointed state0 => (err0 -> err1) -> (state0 -> state1) -> App err0 state0 a -> App err1 state1 a
+fmapOtherArgs f1 f2 app1 = do
+  evald <- liftIO . evalApp $ app1
+  case evald of
+    Left err -> liftEither . Left $ f1 err
+    Right (a, state) -> put (f2 state) >> return a
