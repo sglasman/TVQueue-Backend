@@ -150,7 +150,7 @@ createUpdates season userSeasons episode = maybe
         (userSeasonUserId userSeason)
         (tvdbId episode)
         Nothing
-        (getUserDate userSeason episode)
+        (getUserDate userSeason $ firstAired episode)
       )
       userSeasons
   )
@@ -159,16 +159,12 @@ createUpdates season userSeasons episode = maybe
       : map
           (\userSeason -> updateWhere
             [UserEpisodeEpisodeTvdbId ==. tvdbId episode]
-            [UserEpisodeUserEpisodeDate =. getUserDate userSeason episode]
+            [ UserEpisodeUserEpisodeDate
+                =. getUserDate userSeason (firstAired episode)
+            ]
           )
           userSeasons
   )
-
-getUserDate :: UserSeason -> EpisodeResponse -> Maybe MyDay
-getUserDate userSeason episode = case userSeasonUserSeasonType userSeason of
-  OriginalAirdates -> firstAired episode
-  Custom (MyDay day) interval ->
-    Just . MyDay $ addDays (toInteger interval) day
 
 daysToSeasonType :: [Day] -> IO SeasonType
 daysToSeasonType days =

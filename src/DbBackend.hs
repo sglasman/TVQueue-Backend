@@ -16,7 +16,7 @@ import           Control.Monad.Logger           ( runStdoutLoggingT
                                                 , MonadLogger
                                                 )
 import           Control.Monad.IO.Unlift        ( MonadUnliftIO )
-import Util (Pointed(..))
+import           Util                           ( Pointed(..) )
 
 class DbBackend dbBackend where
   runBackend :: (MonadUnliftIO m, MonadLogger m) => dbBackend -> (SqlBackend -> m a) -> m a
@@ -34,4 +34,5 @@ defaultBackend = SqliteBackend "tvqbh_dev.db"
 testBackend :: SqliteBackend
 testBackend = SqliteBackend "test.db"
 
-instance Pointed SqliteBackend where point = defaultBackend
+instance Pointed SqliteBackend where
+  point = defaultBackend

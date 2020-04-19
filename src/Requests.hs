@@ -8,8 +8,9 @@ module Requests where
 
 import           App                            ( App
                                                 , BridgeAppState(..)
-                                                , DefaultBridgeApp)
-                                              
+                                                , DefaultBridgeApp
+                                                )
+
 import           Control.Monad.Error.Class      ( liftEither )
 import           Control.Monad.IO.Class
 import           Control.Monad.Trans.Except

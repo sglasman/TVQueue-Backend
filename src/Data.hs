@@ -93,7 +93,7 @@ instance FromJSON GetEpisodesResponse where
 data SeasonType = Ongoing | Finished | PastDump | FutureDump deriving (Show, Read, Eq)
 derivePersistField "SeasonType"
 
-data UserSeasonType = OriginalAirdates | Custom { startDate :: MyDay, interval :: Int } deriving (Show, Read, Eq)
+data UserSeasonType = OriginalAirdates | Custom { startDate :: MyDay, interval :: Int } deriving (Show, Read, Eq, Generic, FromJSON)
 derivePersistField "UserSeasonType"
 
 newtype GetSeriesResponse = GetSeriesResponse {

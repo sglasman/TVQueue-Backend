@@ -1,3 +1,5 @@
+{-# LANGUAGE TypeSynonymInstances #-}
+{-# LANGUAGE FlexibleInstances #-}
 module JWT
   ( generateJWT
   )
@@ -6,6 +8,7 @@ where
 import           App                            ( DefaultInApp
                                                 , InAppState(..)
                                                 )
+import           Db                             ( UserId )
 import           Control.Monad                  ( void )
 import           Control.Monad.State            ( gets
                                                 , modify
@@ -19,24 +22,23 @@ import           Servant.Auth.Server            ( JWTSettings
                                                 , generateKey
                                                 , makeJWT
                                                 , ToJWT
+                                                , FromJWT
                                                 )
 import           Data.ByteString.Lazy.UTF8      ( toString )
 
-instance ToJWT Text
+instance ToJWT UserId
+instance FromJWT UserId
 
-getJWTSettings :: DefaultInApp JWTSettings
-getJWTSettings = gets jwtSettings >>= maybe refreshJWTSettings return
-
-generateJWT :: Text -> DefaultInApp String
-generateJWT email = do
-  settings <- getJWTSettings
-  liftIO (makeJWT email settings Nothing) >>= either
-    (const $ refreshJWTSettings >> generateJWT email)
+generateJWT :: UserId -> DefaultInApp String
+generateJWT userId = do
+  settings <- gets jwtSettings
+  liftIO (makeJWT userId settings Nothing) >>= either
+    (const $ refreshJWTSettings >> generateJWT userId)
     (return . toString)
 
 refreshJWTSettings :: DefaultInApp JWTSettings
 refreshJWTSettings = do
   key <- liftIO generateKey
   let settings = defaultJWTSettings key
-  modify (\s -> s { jwtSettings = Just settings })
+  modify (\s -> s { jwtSettings = settings })
   return settings

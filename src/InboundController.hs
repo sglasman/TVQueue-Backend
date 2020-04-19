@@ -3,45 +3,66 @@
 module InboundController
   ( handleCreateUserRequest
   , handleLoginRequest
+  , handleAddSeasonRequest
   )
 where
 
 import           RequestTypes
+import           ResponseTypes
 import           App
 import           Db
-import           Database.Persist               ( insertUnique, getBy, entityVal )
-import           Crypto.PasswordStore           ( makePassword, verifyPassword )
+import           Database.Persist               ( insertUnique
+                                                , getBy
+                                                , entityVal
+                                                , entityKey
+                                                )
+import           Crypto.PasswordStore           ( makePassword
+                                                , verifyPassword
+                                                )
 import           Data.Text.Encoding             ( encodeUtf8 )
+import           Data.Text                      ( unpack )
 import           Control.Monad.IO.Class         ( liftIO )
 import           Control.Monad                  ( void )
 import           Control.Monad.Except           ( throwError )
 import           Data.Maybe                     ( isJust )
-import           Servant.Server.Internal.ServerError
-                                                ( err400
+import           Servant                        ( err400
                                                 , err401
                                                 , errBody
+                                                , NoContent(..)
                                                 )
-import JWT (generateJWT)
-                                               
-handleCreateUserRequest :: CreateUserRequest -> DefaultInApp ()
+
+import           JWT                            ( generateJWT )
+import           Servant                        ( NoContent )
+import           Database.Persist               ( getBy )
+
+handleCreateUserRequest :: CreateUserRequest -> DefaultInApp CreateUserResponse
 handleCreateUserRequest req = do
   inserted <- insertUser req
-  if inserted
-    then return ()
-    else throwError (err400 { errBody = "User already exists" })
+  maybe (throwError (err400 { errBody = "User already exists" }))
+        (return . CreateUserResponse)
+        inserted
 
-insertUser :: CreateUserRequest -> DefaultInApp Bool
+insertUser :: CreateUserRequest -> DefaultInApp (Maybe UserId)
 insertUser (CreateUserRequest email pass) = do
   passHash <- liftIO $ makePassword (encodeUtf8 pass) 17
-  fmap isJust . runDbAction $ insertUnique (User email passHash)
+  runDbAction $ insertUnique (User email passHash)
 
-handleLoginRequest :: LoginRequest -> DefaultInApp String
+handleLoginRequest :: LoginRequest -> DefaultInApp LoginResponse
 handleLoginRequest (LoginRequest email pass) = do
   existingUser <- runDbAction . getBy $ UniqueEmail email
   let error = err401 { errBody = "Incorrect password" }
   maybe
     (throwError error)
-    (\user -> if verifyPassword (encodeUtf8 pass) (userPasswordHash $ entityVal user)
-                then generateJWT email
-                else throwError error)
+    (\user ->
+      if verifyPassword (encodeUtf8 pass) (userPasswordHash $ entityVal user)
+        then fmap LoginResponse (generateJWT $ entityKey user)
+        else throwError error
+    )
     existingUser
+
+handleAddSeasonRequest :: UserId -> AddSeasonRequest -> DefaultInApp NoContent
+handleAddSeasonRequest userId (AddSeasonRequest seriesId seasonNumber userSeasonType)
+  = do
+    seasonId <- entityKey . runDbAction . getBy $ SeasonAndSeries seasonNumber
+                                                                  seriesId
+
