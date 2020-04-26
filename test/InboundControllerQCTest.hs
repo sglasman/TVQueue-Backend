@@ -1,6 +1,6 @@
 {-# LANGUAGE OverloadedStrings #-}
 
-module InboundControllerTest where
+module InboundControllerQCTest where
 
 import Test.QuickCheck (quickCheck)
 import Test.QuickCheck.Monadic (monadicIO, assert, PropertyM)
@@ -19,8 +19,7 @@ import Data.Text (pack, unpack)
 
 run = Q.run . evalInAppTest
 
-ignoreException :: SomeException -> IO ()
-ignoreException _ = return ()
+
 
 setup = run $ liftIO (
   catch (removeFile "test.db") ignoreException

@@ -10,6 +10,8 @@ import           Control.Monad.IO.Class
 import           Control.Monad.Logger
 import           Control.Monad.State            ( MonadState
                                                 , put
+                                                , gets
+                                                , modify
                                                 )
 import           Control.Monad.Trans.State      ( StateT
                                                 , runStateT
@@ -17,6 +19,8 @@ import           Control.Monad.Trans.State      ( StateT
 import           Control.Monad.Trans.Except
 import           Control.Monad.Trans.Maybe
 import qualified Data.ByteString.UTF8          as B
+import qualified Data.ByteString.Lazy.Char8    as BSL
+                                                ( pack )
 import           Database.Persist.Sql           ( SqlBackend )
 import           DbBackend
 import           Err
@@ -26,6 +30,8 @@ import qualified Network.HTTP.Req              as R
 import           Network.HTTP.Types.Status
 import           Servant                        ( Handler(..)
                                                 , ServerError
+                                                , err502
+                                                , errBody
                                                 )
 import           Servant.Auth.Server            ( JWTSettings
                                                 , defaultJWTSettings
@@ -97,20 +103,20 @@ getMaybeResult = (<$>) fst . either (const Nothing) Just
 evalAppResult :: (Pointed state) => App err state a -> IO (Maybe a)
 evalAppResult app = getMaybeResult <$> evalApp app
 
-evalInAppTest
-  :: DefaultInApp a -> IO (Either ServerError (a, DefaultInAppState))
-evalInAppTest app = do
-  jwtSettings <- defaultJWTSettings <$> generateKey
-  evalAppFromState (InAppState jwtSettings testBackend) app
-
-fmapOtherArgs
-  :: Pointed state0
-  => (err0 -> err1)
-  -> (state0 -> state1)
+fmapOtherArgs :: state0
+  -> (err0 -> err1)
   -> App err0 state0 a
   -> App err1 state1 a
-fmapOtherArgs f1 f2 app1 = do
-  evald <- liftIO . evalApp $ app1
+fmapOtherArgs state f app1 = do
+  evald <- liftIO $ evalAppFromState state app1
   case evald of
-    Left  err        -> liftEither . Left $ f1 err
-    Right (a, state) -> put (f2 state) >> return a
+    Left  err        -> liftEither . Left $ f err
+    Right (a, state) -> return a
+
+errToServerError :: OutErr -> ServerError
+errToServerError (OutErr outCode outMessage) = err502
+  { errBody = BSL.pack $ "Outbound error: " ++ show outCode ++ outMessage
+  }
+
+bridgeToIn :: Pointed bridge => DefaultBridgeApp bridge a -> DefaultInApp a
+bridgeToIn = fmapOtherArgs point errToServerError

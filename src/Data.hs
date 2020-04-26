@@ -39,7 +39,7 @@ data Creds = Creds {
 newtype TokenResponse = TokenResponse{token :: String}
   deriving (Generic, Show, FromJSON)
 
-newtype MyDay = MyDay { getDay :: Day } deriving (Show, Read, Eq)
+newtype MyDay = MyDay { getDay :: Day } deriving (Show, Read, Eq, Generic, ToJSON)
 derivePersistField "MyDay"
 
 instance FromJSON MyDay where
@@ -90,11 +90,23 @@ instance FromJSON GetEpisodesResponse where
         <*> (o .: "links" >>= flip (.:) "last")
     )
 
-data SeasonType = Ongoing | Finished | PastDump | FutureDump deriving (Show, Read, Eq)
+data SeasonType = Ongoing | Finished | PastDump { date :: MyDay } | FutureDump { date :: MyDay } deriving (Show, Read, Eq)
 derivePersistField "SeasonType"
 
-data UserSeasonType = OriginalAirdates | Custom { startDate :: MyDay, interval :: Int } deriving (Show, Read, Eq, Generic, FromJSON)
+data UserSeasonType = OriginalAirdates | Custom { startDate :: MyDay, interval :: Int } deriving (Show, Read, Eq)
 derivePersistField "UserSeasonType"
+
+instance FromJSON UserSeasonType where
+  parseJSON value = parseOriginalAirdates value <|> parseCustom value   where
+    parseOriginalAirdates = withText
+      ""
+      (\text -> if text == "originalAirdates"
+        then return OriginalAirdates
+        else fail ""
+      )
+    parseCustom = withObject
+      ""
+      (\o -> Custom <$> (o .: "startDate") <*> (o .: "interval"))
 
 newtype GetSeriesResponse = GetSeriesResponse {
   seriesName :: String

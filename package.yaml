@@ -72,3 +72,4 @@ tests:
     - quickcheck-instances
     - generic-random
     - directory
+    - HUnit

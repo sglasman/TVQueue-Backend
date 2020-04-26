@@ -7,6 +7,7 @@
 {-# LANGUAGE QuasiQuotes                #-}
 {-# LANGUAGE RecordWildCards            #-}
 {-# LANGUAGE StandaloneDeriving         #-}
+{-# LANGUAGE TemplateHaskell            #-}
 {-# LANGUAGE TypeFamilies               #-}
 {-# LANGUAGE UndecidableInstances       #-}
 {-# LANGUAGE ScopedTypeVariables #-}
@@ -24,17 +25,17 @@ import           Control.Monad.Trans.Reader
 import           Data.Text                      ( Text
                                                 , pack
                                                 )
-import           Database.Persist               ( insert
+import           Database.Persist.Class         ( insert
                                                 , insertBy
                                                 , getBy
                                                 , replace
                                                 , PersistRecordBackend
                                                 , Unique
-                                                , Entity(..)
-                                                , Key
                                                 )
 import           Database.Persist.Sql           ( runSqlConn
                                                 , PersistFieldSql
+                                                , Entity(..)
+                                                , Key
                                                 , Migration
                                                 , runMigration
                                                 )
@@ -51,41 +52,85 @@ import qualified Data.ByteString.UTF8          as B
 
 share [mkPersist sqlSettings, mkMigrate "migrateAll"]
   [persistLowerCase|
+
     Series sql=series
+
       name Text
+
       tvdbId Int
+
       UniqueSeriesTvdbId tvdbId
+
       deriving Show Read
+
     Season
+
       number Int
+
       type Data.SeasonType
+
       seriesId Int
+
       SeasonAndSeries number seriesId
+
       deriving Show
+
     Episode
+
       number Int Maybe
+
       tvdbId Int
+
       name Text Maybe
+
       airDate Data.MyDay Maybe
+
       seasonId SeasonId
+
       UniqueEpisodeTvdbId tvdbId
+
       deriving Eq
+
     UserSeason sql=user_season
+
       userId UserId
+
       seasonId SeasonId
+
       userSeasonType Data.UserSeasonType
-      startDate Data.MyDay Maybe
+
       UniqueUserSeason userId seasonId
+
     UserEpisode sql=user_episode
+
       userId UserId
+
       episodeTvdbId Int
+
       watchedOn Data.MyDay Maybe
+
       userEpisodeDate Data.MyDay Maybe
+
       UniqueUserEpisode userId episodeTvdbId
+
     User
+
       email Text
+
       passwordHash B.ByteString
+
       UniqueEmail email
+      
+    UserSeries
+    
+      userId UserId
+      
+      seriesId Int
+      
+      addFutureSeasons Bool
+      
+      UniqueUserSeries userId seriesId
+
   |]
 
 type DbAction b = ReaderT SqlBackend (LoggingT IO) b

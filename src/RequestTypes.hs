@@ -24,3 +24,5 @@ data AddSeasonRequest = AddSeasonRequest {
     seasonNumber :: Int,
     userSeasonType :: UserSeasonType
 } deriving (Show, Generic, FromJSON)
+
+data AddFutureSeasonsRequest = AddFutureSeasonsRequest { addFutureSeasonsSeriesId :: Int, addFutureSeasons :: Bool }

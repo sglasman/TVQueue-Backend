@@ -36,7 +36,7 @@ import           RequestLibrary                 ( getEpisodesRequest
                                                 )
 import           Util                           ( Pointed(..) )
 
-newtype RealBridge = RealBridge { token :: String }
+newtype RealBridge = RealBridge { token :: String } deriving Show
 instance Pointed RealBridge where
   point = RealBridge ""
 instance TVDBBridge RealBridge where

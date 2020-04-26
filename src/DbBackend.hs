@@ -31,8 +31,5 @@ instance DbBackend SqliteBackend where
 defaultBackend :: SqliteBackend
 defaultBackend = SqliteBackend "tvqbh_dev.db"
 
-testBackend :: SqliteBackend
-testBackend = SqliteBackend "test.db"
-
 instance Pointed SqliteBackend where
   point = defaultBackend

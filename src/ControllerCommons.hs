@@ -6,8 +6,9 @@ import           Data                           ( MyDay(..)
 import           Db                             ( UserSeason(..) )
 import           Data.Time                      ( addDays )
 
-getUserDate :: UserSeason -> Maybe MyDay -> Maybe MyDay
-getUserDate userSeason firstAired = case userSeasonUserSeasonType userSeason of
-  OriginalAirdates -> firstAired
-  Custom (MyDay day) interval ->
-    Just . MyDay $ addDays (toInteger interval) day
+getUserDate :: UserSeasonType -> Maybe Int -> Maybe MyDay -> Maybe MyDay
+getUserDate userSeasonType numberInSeason firstAired = case userSeasonType of
+  OriginalAirdates            -> firstAired
+  Custom (MyDay day) interval -> do
+    numberInSeason <- numberInSeason
+    Just . MyDay $ addDays (toInteger $ interval * (numberInSeason - 1)) day

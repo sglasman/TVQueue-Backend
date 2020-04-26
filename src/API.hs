@@ -88,7 +88,7 @@ type UnauthAPI
 
 type AuthAPI = Auth '[JWT] UserId :> (
                   "authtest" :> ReqBody '[JSON] LoginRequest :> Get '[JSON] NoContent :<|>
-                  "season" :> (
+                  "seasons" :> (
                      "add" :> ReqBody '[JSON] AddSeasonRequest :> PostCreated '[JSON] NoContent
                   ))
 
