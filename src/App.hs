@@ -103,10 +103,8 @@ getMaybeResult = (<$>) fst . either (const Nothing) Just
 evalAppResult :: (Pointed state) => App err state a -> IO (Maybe a)
 evalAppResult app = getMaybeResult <$> evalApp app
 
-fmapOtherArgs :: state0
-  -> (err0 -> err1)
-  -> App err0 state0 a
-  -> App err1 state1 a
+fmapOtherArgs
+  :: state0 -> (err0 -> err1) -> App err0 state0 a -> App err1 state1 a
 fmapOtherArgs state f app1 = do
   evald <- liftIO $ evalAppFromState state app1
   case evald of

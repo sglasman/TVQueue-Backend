@@ -1,50 +1,62 @@
-{-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE OverloadedStrings   #-}
+{-# LANGUAGE ScopedTypeVariables #-}
 
 module InboundController
   ( handleCreateUserRequest
   , handleLoginRequest
   , handleAddSeasonRequest
   , handleAddFutureSeasonsRequest
+  , handleGetEpisodesRequest
   )
 where
 
-import           RequestTypes
-import           ResponseTypes
 import           App
-import           Db
-import           Database.Persist               ( insertUnique
-                                                , getBy
-                                                , entityVal
-                                                , entityKey
-                                                , selectList
-                                                , (==.)
-                                                , (=.)
-                                                , upsert
-                                                , Entity(..)
-                                                )
+import           Control.Monad                  ( void )
+import           Control.Monad.Except           ( throwError )
+import           Control.Monad.IO.Class         ( liftIO )
+import           Control.Monad.State            ( gets )
+import           ControllerCommons
 import           Crypto.PasswordStore           ( makePassword
                                                 , verifyPassword
                                                 )
-import           Data.Text.Encoding             ( encodeUtf8 )
-import           Data.Text                      ( unpack )
-import           Control.Monad.IO.Class         ( liftIO )
-import           Control.Monad                  ( void )
-import           Control.Monad.Except           ( throwError )
-import           Control.Monad.State            ( gets )
-import           Data.Maybe                     ( isJust
+import           Data.ByteString.Char8          ( pack )
+import           Data.List                      ( nub )
+import           Data.Maybe                     ( catMaybes
+                                                , isJust
                                                 , maybe
                                                 )
-import           Servant                        ( err400
+import           Data.Map                       ( Map
+                                                , fromList
+                                                , elems
+                                                )
+import qualified Data.Map                      as M
+                                                ( map
+                                                , lookup
+                                                )
+import           Database.Persist               ( Entity(..)
+                                                , entityKey
+                                                , entityVal
+                                                , getBy
+                                                , get
+                                                , insertUnique
+                                                , selectList
+                                                , upsert
+                                                , (=.)
+                                                , (==.)
+                                                )
+import           Db
+import           JWT                            ( generateJWT )
+import           OutApp                         ( DefaultOutApp )
+import           OutboundController             ( addOrUpdateSeries )
+import           RequestTypes
+import           ResponseTypes
+import           Servant                        ( NoContent(..)
+                                                , err400
                                                 , err401
                                                 , err404
                                                 , errBody
-                                                , NoContent(..)
                                                 )
-import           JWT                            ( generateJWT )
-import           ControllerCommons
-import           OutboundController             ( addOrUpdateSeries )
-import           OutApp                         ( DefaultOutApp )
-import Util (orFail)
+import           Util                           ( orFail )
 
 handleCreateUserRequest :: CreateUserRequest -> DefaultInApp CreateUserResponse
 handleCreateUserRequest req = do
@@ -55,7 +67,7 @@ handleCreateUserRequest req = do
 
 insertUser :: CreateUserRequest -> DefaultInApp (Maybe UserId)
 insertUser (CreateUserRequest email pass) = do
-  passHash <- liftIO $ makePassword (encodeUtf8 pass) 17
+  passHash <- liftIO $ makePassword (pack pass) 17
   runDbAction $ insertUnique (User email passHash)
 
 handleLoginRequest :: LoginRequest -> DefaultInApp LoginResponse
@@ -64,10 +76,9 @@ handleLoginRequest (LoginRequest email pass) = do
   let error = err401 { errBody = "Incorrect password" }
   maybe
     (throwError error)
-    (\user ->
-      if verifyPassword (encodeUtf8 pass) (userPasswordHash $ entityVal user)
-        then fmap LoginResponse (generateJWT $ entityKey user)
-        else throwError error
+    (\user -> if verifyPassword (pack pass) (userPasswordHash $ entityVal user)
+      then fmap LoginResponse (generateJWT $ entityKey user)
+      else throwError error
     )
     existingUser
 
@@ -93,11 +104,41 @@ handleAddSeasonRequest userId (AddSeasonRequest seriesId seasonNumber userSeason
       )
       episodes
     return NoContent
-    
-handleAddFutureSeasonsRequest :: UserId -> AddFutureSeasonsRequest -> DefaultInApp NoContent
-handleAddFutureSeasonsRequest userId (AddFutureSeasonsRequest seriesId add) = do
-  runDbAction $ upsert (UserSeries userId seriesId add) [ UserSeriesAddFutureSeasons =. add ]
-  return NoContent 
+
+handleAddFutureSeasonsRequest
+  :: UserId -> AddFutureSeasonsRequest -> DefaultInApp NoContent
+handleAddFutureSeasonsRequest userId (AddFutureSeasonsRequest seriesId add) =
+  do
+    runDbAction $ upsert (UserSeries userId seriesId add)
+                         [UserSeriesAddFutureSeasons =. add]
+    return NoContent
+
+handleGetEpisodesRequest :: UserId -> DefaultInApp GetEpisodesResponse
+handleGetEpisodesRequest userId = do
+  userEps :: [UserEpisode] <- (fmap . fmap) entityVal . runDbAction $ selectList
+    [UserEpisodeUserId ==. userId]
+    []
+  userEpsToEps :: Map UserEpisode Episode <- createMapFromUnique
+    (UniqueEpisodeTvdbId . userEpisodeEpisodeTvdbId)
+    userEps
+  let seasonIds :: [SeasonId] = nub . map episodeSeasonId $ elems userEpsToEps
+  seasonIdsToSeasons <- createMapFromKey id seasonIds
+  let seriesIds :: [Int] = nub . map seasonSeriesId $ elems seasonIdsToSeasons
+  seriesIdToSeries <- createMapFromUnique UniqueSeriesTvdbId seriesIds
+  return . GetEpisodesResponse . catMaybes $ map
+    (\userEp -> do
+      ep     <- M.lookup userEp userEpsToEps
+      season <- M.lookup (episodeSeasonId ep) seasonIdsToSeasons
+      series <- M.lookup (seasonSeriesId season) seriesIdToSeries
+      return $ EpisodeResponse (episodeTvdbId ep)
+                               (seriesTvdbId series)
+                               (Db.seriesName series)
+                               (episodeSeasonId ep)
+                               (userEpisodeUserEpisodeDate userEp)
+                               (episodeName ep)
+                               (userEpisodeWatchedOn userEp)
+    )
+    userEps
 
 retrieveLocalSeason :: Int -> Int -> DefaultInApp (Maybe (Entity Season))
 retrieveLocalSeason seasonNumber seriesId =
@@ -105,13 +146,13 @@ retrieveLocalSeason seasonNumber seriesId =
 
 retrieveSeason :: Int -> Int -> DefaultInApp (Entity Season)
 retrieveSeason seasonNumber seriesId = do
-  maybeLocalSeason <- retrieveLocalSeason seasonNumber seriesId
+  maybeLocalSeason  <- retrieveLocalSeason seasonNumber seriesId
   maybeRemoteSeason <- maybe
-        (do
-          jwtSettings <- gets jwtSettings
-          bridgeToIn (addOrUpdateSeries seriesId :: DefaultOutApp ())
-          retrieveLocalSeason seasonNumber seriesId
-        )
-        (return . Just)
-        maybeLocalSeason
+    (do
+      jwtSettings <- gets jwtSettings
+      bridgeToIn (addOrUpdateSeries seriesId :: DefaultOutApp ())
+      retrieveLocalSeason seasonNumber seriesId
+    )
+    (return . Just)
+    maybeLocalSeason
   orFail err404 $ return maybeRemoteSeason

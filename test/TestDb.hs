@@ -2,7 +2,7 @@
 
 module TestDb where
 
-import DbBackend (SqliteBackend(..))
+import           DbBackend                      ( SqliteBackend(..) )
 
 testBackend :: SqliteBackend
 testBackend = SqliteBackend "test.db"

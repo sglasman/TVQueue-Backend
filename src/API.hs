@@ -89,7 +89,8 @@ type UnauthAPI
 type AuthAPI = Auth '[JWT] UserId :> (
                   "authtest" :> ReqBody '[JSON] LoginRequest :> Get '[JSON] NoContent :<|>
                   "seasons" :> (
-                     "add" :> ReqBody '[JSON] AddSeasonRequest :> PostCreated '[JSON] NoContent
+                     "add" :> ReqBody '[JSON] AddSeasonRequest :> PostCreated '[JSON] NoContent :<|>
+                     "addFuture" :> ReqBody '[JSON] AddFutureSeasonsRequest :> Post '[JSON] NoContent
                   ))
 
 type API = UnauthAPI :<|> AuthAPI
@@ -118,7 +119,8 @@ unauthAppServerT =
 
 authAppServerT :: ServerT AuthAPI ApiApp
 authAppServerT (Authenticated userId) = const (return NoContent) :<|>
-                                        (ApiApp . handleAddSeasonRequest userId)
+                                        (ApiApp . handleAddSeasonRequest userId) :<|>
+                                        (ApiApp . handleAddFutureSeasonsRequest userId)
 authAppServerT _ = throwAll err401   
 
 protect :: (UserId -> a -> ApiApp b) -> AuthResult UserId -> a -> ApiApp b

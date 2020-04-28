@@ -1,6 +1,8 @@
 {-# LANGUAGE DeriveAnyClass     #-}
 {-# LANGUAGE DeriveGeneric      #-}
 {-# LANGUAGE StandaloneDeriving #-}
+{-# LANGUAGE DuplicateRecordFields #-}
+
 module RequestTypes where
 
 import           Data.Aeson                     ( FromJSON )
@@ -10,13 +12,13 @@ import           GHC.Generics                   ( Generic )
 import           Data                           ( UserSeasonType )
 
 data CreateUserRequest = CreateUserRequest {
-    createUserEmail    :: Text,
-    createUserPassword :: Text
+    email    :: String,
+    password :: String
 } deriving (Show, Generic, FromJSON)
 
 data LoginRequest = LoginRequest {
-    loginEmail    :: Text,
-    loginPassword :: Text
+    email    :: String,
+    password :: String
 } deriving (Show, Generic, FromJSON)
 
 data AddSeasonRequest = AddSeasonRequest {
@@ -25,4 +27,4 @@ data AddSeasonRequest = AddSeasonRequest {
     userSeasonType :: UserSeasonType
 } deriving (Show, Generic, FromJSON)
 
-data AddFutureSeasonsRequest = AddFutureSeasonsRequest { addFutureSeasonsSeriesId :: Int, addFutureSeasons :: Bool }
+data AddFutureSeasonsRequest = AddFutureSeasonsRequest { seasonId :: Int, addFutureSeasons :: Bool } deriving (Show, Generic, FromJSON)

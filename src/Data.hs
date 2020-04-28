@@ -39,7 +39,7 @@ data Creds = Creds {
 newtype TokenResponse = TokenResponse{token :: String}
   deriving (Generic, Show, FromJSON)
 
-newtype MyDay = MyDay { getDay :: Day } deriving (Show, Read, Eq, Generic, ToJSON)
+newtype MyDay = MyDay { getDay :: Day } deriving (Show, Read, Eq, Generic, ToJSON, Ord)
 derivePersistField "MyDay"
 
 instance FromJSON MyDay where

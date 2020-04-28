@@ -8,7 +8,9 @@ import           Control.Monad                  ( unless
                                                 , zipWithM_
                                                 )
 import           Control.Monad.IO.Class         ( liftIO )
-import           Control.Monad.Logger           ( logDebug )
+import           Control.Monad.Logger           ( logDebug
+                                                , logDebugN
+                                                )
 import           Data
 import           Data.List                      ( nub )
 import qualified Data.Map                      as M
@@ -69,15 +71,14 @@ import qualified Control.Monad.State           as S
                                                 , gets
                                                 )
 import           ControllerCommons
+import           DbBackend                      ( ProvidesDbBackend )
 
 addOrUpdateSeries :: (TVDBBridge bridge) => Int -> DefaultBridgeApp bridge ()
 addOrUpdateSeries seriesId = do
   maybeSeries <- runDbAction $ getSeries seriesId
-  name        <- maybe (getSeriesName seriesId)
-                       (return . unpack . Db.seriesName)
-                       maybeSeries
+  name <- maybe (getSeriesName seriesId) (return . Db.seriesName) maybeSeries
   when (isNothing maybeSeries) . void . runDbAction $ insert
-    (Db.Series (pack name) seriesId)
+    (Db.Series name seriesId)
   updateSeasonsFromSeries seriesId
 
 updateSeasonsFromSeries
@@ -141,33 +142,63 @@ updateEpisodesForSeasonIfRequired
   => Entity Season
   -> [EpisodeResponse]
   -> DefaultBridgeApp bridge ()
-updateEpisodesForSeasonIfRequired seasonId episodes = do
-  maybeEpisodeEntities :: [Maybe (Entity Episode)] <- runDbActions
+updateEpisodesForSeasonIfRequired seasonEntity episodes = do
+  maybeMatchingEpisodeEntities :: [Maybe (Entity Episode)] <- runDbActions
     $ map (getBy . UniqueEpisodeTvdbId . tvdbId) episodes
-  let positionsWhereEpisodeChanged :: [Bool] =
-        zipWith (didEpisodeChange seasonId) episodes maybeEpisodeEntities
+  logDebugN
+    .  pack
+    $  "Maybe matching episode entities: "
+    ++ show maybeMatchingEpisodeEntities
+  allEpisodeEntitiesForSeason :: [Entity Episode] <- runDbAction
+    $ selectList [EpisodeSeasonId ==. entityKey seasonEntity] []
+  let positionsWhereEpisodeChanged :: [Bool] = zipWith
+        (didEpisodeChange seasonEntity)
+        episodes
+        maybeMatchingEpisodeEntities
   let changedEpisodes :: [EpisodeResponse] =
         map fst . filter snd $ zip episodes positionsWhereEpisodeChanged
   let changedEntities :: [Maybe (Entity Episode)] = map fst . filter snd $ zip
-        maybeEpisodeEntities
+        maybeMatchingEpisodeEntities
         positionsWhereEpisodeChanged
-  unless (null changedEpisodes)
-    $ updateEpisodesForSeason seasonId changedEpisodes changedEntities
+  let deletedEpisodeIds =
+        filter (`notElem` map tvdbId episodes)
+          . map (episodeTvdbId . entityVal)
+          $ allEpisodeEntitiesForSeason
+  unless (null changedEpisodes) $ updateChangedEpisodesForSeason
+    seasonEntity
+    changedEpisodes
+    changedEntities
+  unless (null deletedEpisodeIds)
+    $ updateDeletedEpisodesForSeason deletedEpisodeIds
 
-updateEpisodesForSeason
-  :: TVDBBridge bridge
+updateChangedEpisodesForSeason
+  :: ProvidesDbBackend state
   => Entity Season
   -> [EpisodeResponse]
   -> [Maybe (Entity Episode)]
-  -> DefaultBridgeApp bridge ()
-updateEpisodesForSeason season eps ents = do
+  -> App err state ()
+updateChangedEpisodesForSeason season eps ents = do
   userSeasons :: [UserSeason] <-
     (fmap . fmap) entityVal . runDbAction $ selectList
       [UserSeasonSeasonId ==. entityKey season]
       []
-  void . runDbActions . concat $ zipWith (createUpdates season userSeasons)
-                                         eps
-                                         ents
+  void . runDbActions . concat $ zipWith
+    (generateUpdatesForChangedEpisode season userSeasons)
+    eps
+    ents
+
+updateDeletedEpisodesForSeason
+  :: ProvidesDbBackend state => [Int] -> App err state ()
+updateDeletedEpisodesForSeason ids =
+  void
+    .   runDbActions
+    $   ids
+    >>= (\id ->
+          [ deleteWhere [EpisodeTvdbId ==. id]
+          , deleteWhere [UserEpisodeEpisodeTvdbId ==. id]
+          ]
+        )
+
 
 didEpisodeChange
   :: Entity Season -> EpisodeResponse -> Maybe (Entity Episode) -> Bool
@@ -175,13 +206,13 @@ didEpisodeChange season epRes = maybe
   True
   (\entity -> entityVal entity /= toDbEpisode epRes (entityKey season))
 
-createUpdates
+generateUpdatesForChangedEpisode
   :: Entity Season
   -> [UserSeason]
   -> EpisodeResponse
   -> Maybe (Entity Episode)
   -> [DbAction ()]
-createUpdates season userSeasons episode = maybe
+generateUpdatesForChangedEpisode season userSeasons episode = maybe
   ( (void . insert . toDbEpisode episode $ entityKey season)
   : map
       (\userSeason -> void . insert $ UserEpisode
@@ -215,13 +246,19 @@ daysToSeasonType days =
 
 daysAndTodayToSeasonType :: [Maybe Day] -> Day -> SeasonType
 daysAndTodayToSeasonType days today
-  | null days       = Ongoing
-  | any isNothing days = Ongoing
-  | length justDays > 3 && lastDay < today && length uniqueDays == 1 = PastDump . MyDay $ head justDays
-  | length justDays > 3 && length uniqueDays == 1 = FutureDump . MyDay $ head justDays
-  | lastDay < today = Finished
-  | otherwise       = Ongoing
+  | null days
+  = Ongoing
+  | any isNothing days
+  = Ongoing
+  | length justDays > 3 && lastDay < today && length uniqueDays == 1
+  = PastDump . MyDay $ head justDays
+  | length justDays > 3 && length uniqueDays == 1
+  = FutureDump . MyDay $ head justDays
+  | lastDay < today
+  = Finished
+  | otherwise
+  = Ongoing
  where
-  justDays = catMaybes days
+  justDays   = catMaybes days
   lastDay    = maximum justDays
   uniqueDays = nub days
