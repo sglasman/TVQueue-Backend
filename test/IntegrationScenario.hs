@@ -57,15 +57,22 @@ import           Util                           ( orFail )
 import           InboundController              ( handleAddSeasonRequest
                                                 , handleAddFutureSeasonsRequest
                                                 , handleGetEpisodesRequest
+                                                , handleMarkEpisodeWatchedRequest
                                                 )
 import           RequestTypes                   ( AddSeasonRequest(..)
                                                 , AddFutureSeasonsRequest(..)
+                                                , MarkEpisodeWatchedRequest(..)
                                                 )
-import           ResponseTypes                  ( episodes )
+import           ResponseTypes                  ( episodes
+                                                , userWatchedDate
+                                                )
 import           Test.HUnit                     ( assertEqual )
 
 setup :: TestOutApp ()
 setup = liftIO (catch (removeFile "test.db") ignoreException) >> doMigrateAll
+
+runAll :: IO ()
+runAll = mapM_ runTest [testGetEpisodes, testNewSeasons]
 
 runTest :: TestOutApp () -> IO ()
 runTest = void . evalOutAppTest
@@ -79,11 +86,20 @@ testGetEpisodes = do
   inToTest . handleAddSeasonRequest userId $ AddSeasonRequest 1
                                                               1
                                                               OriginalAirdates
+  inToTest
+    . handleMarkEpisodeWatchedRequest userId
+    $ MarkEpisodeWatchedRequest 1
+    $ JustBase
+    . MyDay
+    $ fromGregorian 2020 1 1
   response <- inToTest $ handleGetEpisodesRequest userId
   liftIO $ assertEqual
     "The correct number of episodes come back in the get episodes response"
     10
     (length $ episodes response)
+  liftIO $ assertEqual "An episode was successfully marked watched"
+                       (Just . MyDay $ fromGregorian 2020 1 1)
+                       (userWatchedDate . head $ episodes response)
   return ()
 
 testNewSeasons :: TestOutApp ()

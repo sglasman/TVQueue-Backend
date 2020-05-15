@@ -7,6 +7,7 @@ module InboundController
   , handleAddSeasonRequest
   , handleAddFutureSeasonsRequest
   , handleGetEpisodesRequest
+  , handleMarkEpisodeWatchedRequest
   )
 where
 
@@ -40,6 +41,7 @@ import           Database.Persist               ( Entity(..)
                                                 , get
                                                 , insertUnique
                                                 , selectList
+                                                , update
                                                 , upsert
                                                 , (=.)
                                                 , (==.)
@@ -133,12 +135,23 @@ handleGetEpisodesRequest userId = do
       return $ EpisodeResponse (episodeTvdbId ep)
                                (seriesTvdbId series)
                                (Db.seriesName series)
-                               (episodeSeasonId ep)
+                               (Db.seasonNumber season)
                                (userEpisodeUserEpisodeDate userEp)
                                (episodeName ep)
                                (userEpisodeWatchedOn userEp)
     )
     userEps
+
+handleMarkEpisodeWatchedRequest
+  :: UserId -> MarkEpisodeWatchedRequest -> DefaultInApp NoContent
+handleMarkEpisodeWatchedRequest userId (MarkEpisodeWatchedRequest episodeId watched)
+  = do
+    userEpisodeKey <-
+      fmap entityKey . orFail err404 . runDbAction . getBy $ UniqueUserEpisode
+        userId
+        episodeId
+    runDbAction $ update userEpisodeKey [UserEpisodeWatchedOn =. watched]
+    return NoContent
 
 retrieveLocalSeason :: Int -> Int -> DefaultInApp (Maybe (Entity Season))
 retrieveLocalSeason seasonNumber seriesId =

@@ -39,21 +39,14 @@ data Creds = Creds {
 newtype TokenResponse = TokenResponse{token :: String}
   deriving (Generic, Show, FromJSON)
 
-newtype MyDay = MyDay { getDay :: Day } deriving (Show, Read, Eq, Generic, ToJSON, Ord)
+newtype MyDay = MyDay { getDay :: Day } deriving (Show, Read, Eq, Generic, Ord)
 derivePersistField "MyDay"
 
 instance FromJSON MyDay where
-  parseJSON v = withText
-    ""
-    (maybe (fail $ "Could not parse date " ++ show v) (pure . MyDay) . textToDay
-    )
-    v
+  parseJSON = fmap MyDay . parseJSON
 
-timeFormatString :: String
-timeFormatString = "%Y-%0m-%0d"
-
-textToDay :: Text -> Maybe Day
-textToDay = parseTimeM True defaultTimeLocale timeFormatString . unpack
+instance ToJSON MyDay where
+  toJSON = toJSON . getDay
 
 data EpisodeResponse = EpisodeResponse {
    airedEpisodeNumber :: Maybe Int,

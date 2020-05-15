@@ -7,9 +7,10 @@ module RequestTypes where
 
 import           Data.Aeson                     ( FromJSON )
 import           Data.Text                      ( Text )
-
 import           GHC.Generics                   ( Generic )
-import           Data                           ( UserSeasonType )
+import           Data                           ( UserSeasonType
+                                                , MyDay
+                                                )
 
 data CreateUserRequest = CreateUserRequest {
     email    :: String,
@@ -28,3 +29,5 @@ data AddSeasonRequest = AddSeasonRequest {
 } deriving (Show, Generic, FromJSON)
 
 data AddFutureSeasonsRequest = AddFutureSeasonsRequest { seasonId :: Int, addFutureSeasons :: Bool } deriving (Show, Generic, FromJSON)
+
+data MarkEpisodeWatchedRequest = MarkEpisodeWatchedRequest { episodeId :: Int, watched :: Maybe MyDay } deriving (Show, Generic, FromJSON)

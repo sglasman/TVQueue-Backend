@@ -1,7 +1,7 @@
 module ControllerCommons where
 
-import           Data                           ( MyDay(..)
-                                                , UserSeasonType(..)
+import           Data                           ( UserSeasonType(..)
+                                                , MyDay(..)
                                                 )
 import           Db                             ( UserSeason(..) )
 import           Data.Time                      ( addDays )

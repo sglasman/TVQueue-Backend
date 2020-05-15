@@ -2,12 +2,12 @@
 {-# LANGUAGE DeriveGeneric  #-}
 module ResponseTypes where
 
-import           Data                           ( MyDay )
 import           Data.Aeson.Types               ( ToJSON )
 import           Db                             ( SeasonId
                                                 , UserId
                                                 )
 import           GHC.Generics                   ( Generic )
+import           Data                           ( MyDay )
 
 newtype CreateUserResponse = CreateUserResponse { userId :: UserId }
   deriving (Show, Eq, Generic, ToJSON)
@@ -21,7 +21,7 @@ data EpisodeResponse = EpisodeResponse {
   episodeId       :: Int,
   seriesId        :: Int,
   seriesName      :: String,
-  seasonId        :: SeasonId,
+  seasonNumber    :: Int,
   userDate        :: Maybe MyDay,
   name            :: Maybe String,
   userWatchedDate :: Maybe MyDay

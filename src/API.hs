@@ -91,7 +91,9 @@ type AuthAPI = Auth '[JWT] UserId :> (
                   "seasons" :> (
                      "add" :> ReqBody '[JSON] AddSeasonRequest :> PostCreated '[JSON] NoContent :<|>
                      "addFuture" :> ReqBody '[JSON] AddFutureSeasonsRequest :> Post '[JSON] NoContent
-                  ))
+                  ) :<|> 
+                  "episodes" :> (Get '[JSON] GetEpisodesResponse :<|>
+                     "watch" :> ReqBody '[JSON] MarkEpisodeWatchedRequest :> Post '[JSON] NoContent))
 
 type API = UnauthAPI :<|> AuthAPI
 
@@ -119,8 +121,11 @@ unauthAppServerT =
 
 authAppServerT :: ServerT AuthAPI ApiApp
 authAppServerT (Authenticated userId) = const (return NoContent) :<|>
-                                        (ApiApp . handleAddSeasonRequest userId) :<|>
-                                        (ApiApp . handleAddFutureSeasonsRequest userId)
+                                        ((ApiApp . handleAddSeasonRequest userId) :<|>
+                                        (ApiApp . handleAddFutureSeasonsRequest userId)) :<|>
+                                        (ApiApp $ handleGetEpisodesRequest userId) :<|>
+                                        (ApiApp . handleMarkEpisodeWatchedRequest userId)
+                                      
 authAppServerT _ = throwAll err401   
 
 protect :: (UserId -> a -> ApiApp b) -> AuthResult UserId -> a -> ApiApp b

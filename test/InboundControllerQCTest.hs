@@ -26,10 +26,12 @@ import           Control.Monad                  ( void )
 import           Data.Text                      ( pack
                                                 , unpack
                                                 )
+import           TestUtils                      ( ignoreException )
+import           TestApp                        ( evalInAppTest )
+
+runAll = sequence_ [createUserTest, loginTest]
 
 run = Q.run . evalInAppTest
-
-
 
 setup =
   run $ liftIO (catch (removeFile "test.db") ignoreException) >> doMigrateAll
@@ -52,6 +54,6 @@ loginTest = quickCheck
     assert (isRight result2)
     result3 <- run . handleLoginRequest $ LoginRequest
       email
-      (pack $ unpack pass ++ "bad")
+      (pass ++ "bad")
     assert (isLeft result3)
   )
