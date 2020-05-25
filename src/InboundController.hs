@@ -8,6 +8,7 @@ module InboundController
   , handleAddFutureSeasonsRequest
   , handleGetEpisodesRequest
   , handleMarkEpisodeWatchedRequest
+  , handleSearchRequest
   )
 where
 
@@ -51,7 +52,8 @@ import           JWT                            ( generateJWT )
 import           OutApp                         ( DefaultOutApp )
 import           OutboundController             ( addOrUpdateSeries )
 import           RequestTypes
-import           ResponseTypes
+import           TVQResponseTypes
+import qualified TVDBResponseTypes as TVDB
 import           Servant                        ( NoContent(..)
                                                 , err400
                                                 , err401
@@ -59,12 +61,14 @@ import           Servant                        ( NoContent(..)
                                                 , errBody
                                                 )
 import           Util                           ( orFail )
+import TVDBBridge (executeSearch)
+import Control.Monad.Logger (logDebugN)
 
 handleCreateUserRequest :: CreateUserRequest -> DefaultInApp CreateUserResponse
 handleCreateUserRequest req = do
   inserted <- insertUser req
   maybe (throwError (err400 { errBody = "User already exists" }))
-        (return . CreateUserResponse)
+        (\userId -> CreateUserResponse userId <$> generateJWT userId)
         inserted
 
 insertUser :: CreateUserRequest -> DefaultInApp (Maybe UserId)
@@ -152,6 +156,14 @@ handleMarkEpisodeWatchedRequest userId (MarkEpisodeWatchedRequest episodeId watc
         episodeId
     runDbAction $ update userEpisodeKey [UserEpisodeWatchedOn =. watched]
     return NoContent
+
+handleSearchRequest :: UserId -> Maybe String -> DefaultInApp SearchResponse
+handleSearchRequest _ searchterm = do
+  logDebugN "Loggo" 
+  justSearchterm <- orFail err400 { errBody = "No search term given" }
+    $ return searchterm
+  response :: TVDB.SearchResponse <- bridgeToIn (executeSearch justSearchterm :: DefaultOutApp TVDB.SearchResponse)
+  return $ searchResponseFromTvdb response
 
 retrieveLocalSeason :: Int -> Int -> DefaultInApp (Maybe (Entity Season))
 retrieveLocalSeason seasonNumber seriesId =

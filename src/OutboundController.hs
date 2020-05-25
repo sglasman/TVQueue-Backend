@@ -72,6 +72,9 @@ import qualified Control.Monad.State           as S
                                                 )
 import           ControllerCommons
 import           DbBackend                      ( ProvidesDbBackend )
+import           TVDBResponseTypes              ( SearchResult
+                                                , EpisodeResponse(..)
+                                                )
 
 addOrUpdateSeries :: (TVDBBridge bridge) => Int -> DefaultBridgeApp bridge ()
 addOrUpdateSeries seriesId = do

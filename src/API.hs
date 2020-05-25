@@ -30,6 +30,7 @@ import           Servant                        ( (:>)
                                                 , Proxy(..)
                                                 , ServerError(..)
                                                 , err401
+                                                , QueryParam
                                                 )
 import           Servant.Auth.Server            ( FromJWT
                                                 , ToJWT
@@ -54,7 +55,7 @@ import           App                            ( DefaultInApp
 import qualified Network.Wai                   as Wai
 import qualified Network.Wai.Handler.Warp      as Warp
 import           InboundController
-import           ResponseTypes
+import           TVQResponseTypes
 import           Data.Text                      ( Text
                                                 , pack
                                                 )
@@ -93,7 +94,8 @@ type AuthAPI = Auth '[JWT] UserId :> (
                      "addFuture" :> ReqBody '[JSON] AddFutureSeasonsRequest :> Post '[JSON] NoContent
                   ) :<|> 
                   "episodes" :> (Get '[JSON] GetEpisodesResponse :<|>
-                     "watch" :> ReqBody '[JSON] MarkEpisodeWatchedRequest :> Post '[JSON] NoContent))
+                     "watch" :> ReqBody '[JSON] MarkEpisodeWatchedRequest :> Post '[JSON] NoContent) :<|>
+                   "search" :> QueryParam "searchterm" String :> Get '[JSON] SearchResponse)
 
 type API = UnauthAPI :<|> AuthAPI
 
@@ -123,8 +125,9 @@ authAppServerT :: ServerT AuthAPI ApiApp
 authAppServerT (Authenticated userId) = const (return NoContent) :<|>
                                         ((ApiApp . handleAddSeasonRequest userId) :<|>
                                         (ApiApp . handleAddFutureSeasonsRequest userId)) :<|>
-                                        (ApiApp $ handleGetEpisodesRequest userId) :<|>
-                                        (ApiApp . handleMarkEpisodeWatchedRequest userId)
+                                        ((ApiApp $ handleGetEpisodesRequest userId) :<|>
+                                        (ApiApp . handleMarkEpisodeWatchedRequest userId)) :<|>
+                                        (ApiApp . handleSearchRequest userId)
                                       
 authAppServerT _ = throwAll err401   
 

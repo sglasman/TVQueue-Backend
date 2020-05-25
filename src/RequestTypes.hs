@@ -31,3 +31,5 @@ data AddSeasonRequest = AddSeasonRequest {
 data AddFutureSeasonsRequest = AddFutureSeasonsRequest { seasonId :: Int, addFutureSeasons :: Bool } deriving (Show, Generic, FromJSON)
 
 data MarkEpisodeWatchedRequest = MarkEpisodeWatchedRequest { episodeId :: Int, watched :: Maybe MyDay } deriving (Show, Generic, FromJSON)
+
+newtype SearchRequest = SearchRequest { searchTerm :: String } deriving (Show, Generic, FromJSON)

@@ -63,7 +63,7 @@ import           RequestTypes                   ( AddSeasonRequest(..)
                                                 , AddFutureSeasonsRequest(..)
                                                 , MarkEpisodeWatchedRequest(..)
                                                 )
-import           ResponseTypes                  ( episodes
+import           TVQResponseTypes               ( episodes
                                                 , userWatchedDate
                                                 )
 import           Test.HUnit                     ( assertEqual )

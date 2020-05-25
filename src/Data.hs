@@ -2,16 +2,15 @@
 {-# LANGUAGE DeriveGeneric     #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE TemplateHaskell   #-}
+{-# LANGUAGE OverloadedLabels #-}
+{-# LANGUAGE DuplicateRecordFields #-}
 
 module Data
   ( Creds(..)
-  , TokenResponse(..)
   , MyDay(..)
-  , EpisodeResponse(..)
-  , GetEpisodesResponse(..)
   , SeasonType(..)
-  , GetSeriesResponse(..)
   , UserSeasonType(..)
+  , SeriesType(..)
   )
 where
 
@@ -36,9 +35,6 @@ data Creds = Creds {
   apikey   :: String
 } deriving (Generic, Show, ToJSON)
 
-newtype TokenResponse = TokenResponse{token :: String}
-  deriving (Generic, Show, FromJSON)
-
 newtype MyDay = MyDay { getDay :: Day } deriving (Show, Read, Eq, Generic, Ord)
 derivePersistField "MyDay"
 
@@ -47,41 +43,6 @@ instance FromJSON MyDay where
 
 instance ToJSON MyDay where
   toJSON = toJSON . getDay
-
-data EpisodeResponse = EpisodeResponse {
-   airedEpisodeNumber :: Maybe Int,
-   airedSeason        :: Maybe Int,
-   firstAired         :: Maybe MyDay,
-   episodeName        :: Maybe String,
-   tvdbId             :: Int
-} deriving (Generic, Show)
-
-instance FromJSON EpisodeResponse where
-  parseJSON = withObject "" $ \o -> do
-    airedEpisodeNumber <- o .:? "airedEpisodeNumber"
-    airedSeason        <- o .:? "airedSeason"
-    firstAired         <- o .:? "firstAired" <|> pure Nothing
-    episodeName        <- o .:? "episodeName"
-    tvdbId             <- o .: "id"
-    return $ EpisodeResponse airedEpisodeNumber
-                             airedSeason
-                             firstAired
-                             episodeName
-                             tvdbId
-
-data GetEpisodesResponse = GetEpisodesResponse {
-  episodes  :: [EpisodeResponse],
-  pageCount :: Int
-} deriving (Show)
-
-instance FromJSON GetEpisodesResponse where
-  parseJSON = withObject
-    ""
-    (\o ->
-      GetEpisodesResponse
-        <$> (o .: "data")
-        <*> (o .: "links" >>= flip (.:) "last")
-    )
 
 data SeasonType = Ongoing | Finished | PastDump { date :: MyDay } | FutureDump { date :: MyDay } deriving (Show, Read, Eq)
 derivePersistField "SeasonType"
@@ -101,12 +62,16 @@ instance FromJSON UserSeasonType where
       ""
       (\o -> Custom <$> (o .: "startDate") <*> (o .: "interval"))
 
-newtype GetSeriesResponse = GetSeriesResponse {
-  seriesName :: String
-} deriving (Show)
+data SeriesType = Continuing | Ended deriving (Show, Eq, Generic, ToJSON)
 
-instance FromJSON GetSeriesResponse where
-  parseJSON = withObject
+instance FromJSON SeriesType where
+  parseJSON = withText
     ""
-    (\o -> GetSeriesResponse <$> (o .: "data" >>= flip (.:) "seriesName"))
+    (\text -> case toLower text of
+      "continuing" -> return Continuing
+      "ended"      -> return Ended
+      _            -> fail ""
+    )
+
+
 

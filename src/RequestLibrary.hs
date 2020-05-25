@@ -6,6 +6,10 @@ import           Data
 import           Data.String                    ( fromString )
 import           Network.HTTP.Req
 import           Requests
+import           TVDBResponseTypes              ( GetSeriesResponse
+                                                , GetEpisodesResponse
+                                                , SearchResponse
+                                                )
 
 getSeriesRequest :: Int -> Request NoReqBody GetSeriesResponse GET
 getSeriesRequest seriesId =
@@ -19,3 +23,10 @@ getEpisodesRequest seriesId page =
     /: "series"
     /: fromString (show seriesId)
     /: "episodes"
+
+searchRequest :: String -> Request NoReqBody SearchResponse GET
+searchRequest searchTerm =
+  Request NoReqBody GET [("name", searchTerm)]
+    $  https "api.thetvdb.com"
+    /: "search"
+    /: "series"

@@ -53,6 +53,7 @@ import           Data.Maybe                     ( isJust )
 import qualified Data.ByteString.UTF8          as B
 import qualified Data.Map as M (Map, map, fromList)
 import Util (catSndMaybes)
+import qualified TVDBResponseTypes as R (EpisodeResponse(..))
 
 share [mkPersist sqlSettings, mkMigrate "migrateAll"]
   [persistLowerCase|
@@ -127,12 +128,12 @@ repsertBy unique record = do
 getSeries :: Int -> DbAction (Maybe Series)
 getSeries = (fmap . fmap) entityVal <$> getBy . UniqueSeriesTvdbId
 
-toDbEpisode :: Data.EpisodeResponse -> SeasonId -> Episode
+toDbEpisode :: R.EpisodeResponse -> SeasonId -> Episode
 toDbEpisode episodeResponse = Episode
-  (Data.airedEpisodeNumber episodeResponse)
-  (Data.tvdbId episodeResponse)
-  (Data.episodeName episodeResponse)
-  (Data.firstAired episodeResponse)
+  (R.airedEpisodeNumber episodeResponse)
+  (R.tvdbId episodeResponse)
+  (R.episodeName episodeResponse)
+  (R.firstAired episodeResponse)
 
 doMigrateAll :: (ProvidesDbBackend state) => App err state ()
 doMigrateAll = runDbAction $ runMigration migrateAll

@@ -52,8 +52,6 @@ loginTest = quickCheck
     assert (isRight result1)
     result2 <- run . handleLoginRequest $ LoginRequest email pass
     assert (isRight result2)
-    result3 <- run . handleLoginRequest $ LoginRequest
-      email
-      (pass ++ "bad")
+    result3 <- run . handleLoginRequest $ LoginRequest email (pass ++ "bad")
     assert (isLeft result3)
   )

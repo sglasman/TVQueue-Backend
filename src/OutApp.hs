@@ -33,8 +33,15 @@ import           Secret
 import           TVDBBridge                     ( TVDBBridge(..) )
 import           RequestLibrary                 ( getEpisodesRequest
                                                 , getSeriesRequest
+                                                , searchRequest
                                                 )
 import           Util                           ( Pointed(..) )
+import qualified TVDBResponseTypes
+import           TVDBResponseTypes              ( EpisodeResponse(..)
+                                                , GetEpisodesResponse(..)
+                                                , GetSeriesResponse(..)
+                                                , SearchResponse(..)
+                                                )
 
 newtype RealBridge = RealBridge { token :: String } deriving Show
 instance Pointed RealBridge where
@@ -42,6 +49,7 @@ instance Pointed RealBridge where
 instance TVDBBridge RealBridge where
   getEpisodes   = realGetEpisodes
   getSeriesName = realGetSeriesName
+  executeSearch = realExecuteSearch
 
 type DefaultOutApp a = DefaultBridgeApp RealBridge a
 
@@ -78,8 +86,10 @@ getToken :: DefaultOutApp ()
 getToken = do
   res <- req POST loginUrl (ReqBodyJson creds) jsonResponse mempty
   case fromJSON $ responseBody res of
-    Success tr ->
-      modify (\appState -> appState { bridge = RealBridge $ Data.token tr })
+    Success tr -> modify
+      (\appState ->
+        appState { bridge = RealBridge $ TVDBResponseTypes.token tr }
+      )
     _ -> return ()
 
 loginUrl :: Url 'Https
@@ -95,3 +105,6 @@ realGetEpisodes id = do
 realGetSeriesName :: Int -> DefaultOutApp String
 realGetSeriesName seriesId =
   fmap seriesName $ runAuthenticated $ getSeriesRequest seriesId
+
+realExecuteSearch :: String -> DefaultOutApp SearchResponse
+realExecuteSearch = runAuthenticated . searchRequest 
