@@ -23,7 +23,9 @@ instance FromJSON SearchResponse where
 data SearchResult = SearchResult {
   id         :: Int,
   seriesName :: String,
-  status     :: Maybe SeriesType
+  status     :: Maybe SeriesType,
+  overview :: Maybe String,
+  firstAired :: Maybe MyDay
 } deriving (Show, Eq, Generic)
 
 instance FromJSON SearchResult where
@@ -33,7 +35,9 @@ instance FromJSON SearchResult where
       id         <- o .: "id"
       seriesName <- o .: "seriesName"
       status     <- Just <$> o .: "status" <|> return Nothing
-      return $ SearchResult id seriesName status
+      overview   <- Just <$> o .: "overview" <|> return Nothing
+      firstAired <- Just <$> o .: "firstAired" <|> return Nothing
+      return $ SearchResult id seriesName status overview firstAired
     )
 
 newtype GetSeriesResponse = GetSeriesResponse {
@@ -80,5 +84,6 @@ instance FromJSON EpisodeResponse where
                              episodeName
                              tvdbId
 
-newtype TokenResponse = TokenResponse{token :: String}
-  deriving (Generic, Show, FromJSON)
+newtype TokenResponse = TokenResponse{token :: String} deriving Show
+instance FromJSON TokenResponse where
+  parseJSON = withObject "" (\o -> TokenResponse <$> o .: "token")

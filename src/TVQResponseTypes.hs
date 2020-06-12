@@ -8,10 +8,12 @@ import           Db                             ( SeasonId
                                                 , UserId
                                                 )
 import           GHC.Generics                   ( Generic )
-import           Data                           ( MyDay
+import           Data                           ( MyDay(..)
                                                 , SeriesType
                                                 )
-import qualified TVDBResponseTypes as TVDB
+import qualified TVDBResponseTypes             as TVDB
+import           Data.Time.Calendar             ( toGregorian )
+import           Util                           ( firstOfTriple )
 
 data CreateUserResponse = CreateUserResponse { userId :: UserId, token :: String }
   deriving (Show, Eq, Generic, ToJSON)
@@ -36,11 +38,21 @@ newtype SearchResponse = SearchResponse { results :: [SearchResult] } deriving (
 data SearchResult = SearchResult {
   seriesId :: Int,
   seriesName :: String,
-  seriesType :: Maybe SeriesType
+  seriesType :: Maybe SeriesType,
+  overview :: Maybe String,
+  year :: Maybe Int
 } deriving (Show, Eq, Generic, ToJSON)
 
 searchResultFromTvdb :: TVDB.SearchResult -> SearchResult
-searchResultFromTvdb  = SearchResult <$> TVDB.id <*> (TVDB.seriesName :: TVDB.SearchResult -> String) <*> TVDB.status
+searchResultFromTvdb =
+  SearchResult
+    <$> TVDB.id
+    <*> (TVDB.seriesName :: TVDB.SearchResult -> String)
+    <*> TVDB.status
+    <*> TVDB.overview
+    <*> (fmap . fmap) (fromInteger . firstOfTriple . toGregorian . getDay)
+                      (TVDB.firstAired :: TVDB.SearchResult -> Maybe MyDay)
 
 searchResponseFromTvdb :: TVDB.SearchResponse -> SearchResponse
-searchResponseFromTvdb = SearchResponse . map searchResultFromTvdb . TVDB.results
+searchResponseFromTvdb =
+  SearchResponse . map searchResultFromTvdb . TVDB.results

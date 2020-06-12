@@ -53,7 +53,7 @@ import           OutApp                         ( DefaultOutApp )
 import           OutboundController             ( addOrUpdateSeries )
 import           RequestTypes
 import           TVQResponseTypes
-import qualified TVDBResponseTypes as TVDB
+import qualified TVDBResponseTypes             as TVDB
 import           Servant                        ( NoContent(..)
                                                 , err400
                                                 , err401
@@ -61,8 +61,8 @@ import           Servant                        ( NoContent(..)
                                                 , errBody
                                                 )
 import           Util                           ( orFail )
-import TVDBBridge (executeSearch)
-import Control.Monad.Logger (logDebugN)
+import           TVDBBridge                     ( executeSearch )
+import           Control.Monad.Logger           ( logDebugN )
 
 handleCreateUserRequest :: CreateUserRequest -> DefaultInApp CreateUserResponse
 handleCreateUserRequest req = do
@@ -159,10 +159,10 @@ handleMarkEpisodeWatchedRequest userId (MarkEpisodeWatchedRequest episodeId watc
 
 handleSearchRequest :: UserId -> Maybe String -> DefaultInApp SearchResponse
 handleSearchRequest _ searchterm = do
-  logDebugN "Loggo" 
   justSearchterm <- orFail err400 { errBody = "No search term given" }
     $ return searchterm
-  response :: TVDB.SearchResponse <- bridgeToIn (executeSearch justSearchterm :: DefaultOutApp TVDB.SearchResponse)
+  response :: TVDB.SearchResponse <- bridgeToIn
+    (executeSearch justSearchterm :: DefaultOutApp TVDB.SearchResponse)
   return $ searchResponseFromTvdb response
 
 retrieveLocalSeason :: Int -> Int -> DefaultInApp (Maybe (Entity Season))

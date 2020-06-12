@@ -16,7 +16,7 @@ import           Control.Monad.Except           ( liftEither
                                                 , catchError
                                                 )
 import           Control.Monad.IO.Class
-import           Control.Monad.Logger           ( logDebugNS )
+import           Control.Monad.Logger           ( logDebugN )
 import           Control.Monad.State.Class      ( modify
                                                 , gets
                                                 )
@@ -42,6 +42,7 @@ import           TVDBResponseTypes              ( EpisodeResponse(..)
                                                 , GetSeriesResponse(..)
                                                 , SearchResponse(..)
                                                 )
+import           Data.Text                      ( pack )
 
 newtype RealBridge = RealBridge { token :: String } deriving Show
 instance Pointed RealBridge where
@@ -55,12 +56,16 @@ type DefaultOutApp a = DefaultBridgeApp RealBridge a
 
 runAuthenticated
   :: (RequestOK a b method) => Request a b method -> DefaultOutApp b
-runAuthenticated req = do
+runAuthenticated = goRunAuthenticated False
+
+goRunAuthenticated
+  :: (RequestOK a b method) => Bool -> Request a b method -> DefaultOutApp b
+goRunAuthenticated alreadyTried req = do
   let res = makeRequest req
   catchError
     res
-    (\err -> if outCode err == Just 401
-      then getToken >> runAuthenticated req
+    (\err -> if outCode err == Just 401 && not alreadyTried
+      then getToken >> goRunAuthenticated True req
       else res
     )
 
@@ -107,4 +112,4 @@ realGetSeriesName seriesId =
   fmap seriesName $ runAuthenticated $ getSeriesRequest seriesId
 
 realExecuteSearch :: String -> DefaultOutApp SearchResponse
-realExecuteSearch = runAuthenticated . searchRequest 
+realExecuteSearch = runAuthenticated . searchRequest

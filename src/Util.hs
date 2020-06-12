@@ -24,3 +24,6 @@ catSndMaybes :: [(a, Maybe b)] -> [(a, b)]
 catSndMaybes []                    = []
 catSndMaybes ((a, Just b ) : rest) = (a, b) : catSndMaybes rest
 catSndMaybes ((a, Nothing) : rest) = catSndMaybes rest
+
+firstOfTriple :: (a, b, c) -> a
+firstOfTriple (a, b, c) = a

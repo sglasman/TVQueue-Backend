@@ -39,7 +39,17 @@ newtype MyDay = MyDay { getDay :: Day } deriving (Show, Read, Eq, Generic, Ord)
 derivePersistField "MyDay"
 
 instance FromJSON MyDay where
-  parseJSON = fmap MyDay . parseJSON
+  parseJSON v = withText
+    ""
+    (maybe (fail $ "Could not parse date " ++ show v) (pure . MyDay) . textToDay
+    )
+    v
+
+timeFormatString :: String
+timeFormatString = "%Y-%-m-%-d"
+
+textToDay :: Text -> Maybe Day
+textToDay = parseTimeM True defaultTimeLocale timeFormatString . unpack
 
 instance ToJSON MyDay where
   toJSON = toJSON . getDay
