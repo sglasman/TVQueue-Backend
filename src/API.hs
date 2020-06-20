@@ -153,4 +153,4 @@ waiApp = do
     (server jwtSettings)
 
 startService :: IO ()
-startService = waiApp >>= Warp.run 754
+startService = waiApp >>= Warp.run 80
