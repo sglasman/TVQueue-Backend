@@ -1,4 +1,6 @@
 module Main where
 
+import API (startService)
+
 main :: IO ()
-main = return ()
+main = startService
