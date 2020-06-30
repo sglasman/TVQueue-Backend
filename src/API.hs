@@ -9,7 +9,8 @@
 {-# LANGUAGE PartialTypeSignatures #-}
 {-# LANGUAGE TemplateHaskell #-}
 module API
-  ( startService
+  ( startService,
+    startServiceTls
   )
 where
 
