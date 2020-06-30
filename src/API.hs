@@ -54,6 +54,7 @@ import           App                            ( DefaultInApp
                                                 )
 import qualified Network.Wai                   as Wai
 import qualified Network.Wai.Handler.Warp      as Warp
+import Network.Wai.Handler.WarpTLS (runTLS, tlsSettings)
 import           InboundController
 import           TVQResponseTypes
 import           Data.Text                      ( Text
@@ -154,3 +155,6 @@ waiApp = do
 
 startService :: IO ()
 startService = waiApp >>= Warp.run 80
+
+startServiceTls :: IO ()
+startServiceTls = waiApp >>= runTLS (tlsSettings "cert.pem" "privkey.pem") (Warp.setPort 443 Warp.defaultSettings)

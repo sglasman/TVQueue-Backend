@@ -24,6 +24,7 @@ dependencies:
 - pwstore-fast
 - wai
 - warp
+- warp-tls
 - bytestring
 
 library:
