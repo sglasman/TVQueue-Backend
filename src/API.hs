@@ -158,4 +158,4 @@ startService :: IO ()
 startService = waiApp >>= Warp.run 80
 
 startServiceTls :: IO ()
-startServiceTls = waiApp >>= runTLS (tlsSettings "./cert.pem" "./privkey.pem") (Warp.setPort 443 Warp.defaultSettings)
+startServiceTls = waiApp >>= runTLS (tlsSettings "cert.pem" "privkey.pem") (Warp.setPort 443 Warp.defaultSettings)
