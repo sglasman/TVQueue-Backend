@@ -97,7 +97,7 @@ type AuthAPI = Auth '[JWT] UserId :> (
                   ) :<|> 
                   "episodes" :> (Get '[JSON] GetEpisodesResponse :<|>
                      "watch" :> ReqBody '[JSON] MarkEpisodeWatchedRequest :> Post '[JSON] NoContent) :<|>
-                   "search" :> QueryParam "searchterm" String :> Get '[JSON] SearchResponse)
+                  "search" :> QueryParam "searchterm" String :> Get '[JSON] SearchResponse)
 
 type API = UnauthAPI :<|> AuthAPI
 

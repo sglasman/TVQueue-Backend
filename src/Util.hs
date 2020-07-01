@@ -27,3 +27,8 @@ catSndMaybes ((a, Nothing) : rest) = catSndMaybes rest
 
 firstOfTriple :: (a, b, c) -> a
 firstOfTriple (a, b, c) = a
+
+interleave :: [a] -> [a] -> [a]
+interleave []       as       = []
+interleave as       []       = []
+interleave (a : as) (b : bs) = [a, b] ++ interleave as bs

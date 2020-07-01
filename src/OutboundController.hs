@@ -78,6 +78,7 @@ import           TVDBResponseTypes              ( SearchResult
 
 addOrUpdateSeries :: (TVDBBridge bridge) => Int -> DefaultBridgeApp bridge ()
 addOrUpdateSeries seriesId = do
+  logDebugN . pack $ "addOrUpdateSeries with id" ++ show seriesId
   maybeSeries <- runDbAction $ getSeries seriesId
   name <- maybe (getSeriesName seriesId) (return . Db.seriesName) maybeSeries
   when (isNothing maybeSeries) . void . runDbAction $ insert
